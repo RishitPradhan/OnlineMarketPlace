@@ -2,6 +2,8 @@ import React from 'react';
 import { Search, Bell, User, Settings, Globe, Moon, Sun, LogOut } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface NavbarProps {
   user: {
@@ -13,18 +15,18 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ user }) => {
   const { theme, toggleTheme } = useTheme();
+  const { logout } = useAuth();
+  const navigate = useNavigate();
 
-  const handleLogout = () => {
-    // Clear any stored authentication data
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
-    sessionStorage.clear();
-    
-    // Redirect to login page
-    window.location.href = '/login';
-    
-    // You can also use React Router if you have it set up:
-    // navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Even if logout fails, redirect to login
+      navigate('/login');
+    }
   };
 
   return (

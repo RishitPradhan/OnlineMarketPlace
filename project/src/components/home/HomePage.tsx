@@ -21,6 +21,18 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import RotatingText from './RotatingText';
+import CardSwap, { Card } from './CardSwap';
+
+// Fullscreen transition overlay component
+const FullScreenTransition = ({ show }: { show: boolean }) => (
+  <div
+    className={`fixed inset-0 z-50 bg-gradient-to-br from-green-500 to-blue-700 flex items-center justify-center transition-all duration-700
+      ${show ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-110 pointer-events-none'}`}
+    style={{ transitionProperty: 'opacity, transform' }}
+  >
+    <span className="text-5xl font-bold text-white drop-shadow-lg">Loading...</span>
+  </div>
+);
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -28,6 +40,8 @@ export const HomePage: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [activeSection, setActiveSection] = useState(0);
   const [showServicesModal, setShowServicesModal] = useState(false);
+  const [showFirstText, setShowFirstText] = useState(false);
+  const [showPageTransition, setShowPageTransition] = useState(false);
 
   const heroRef = useRef<HTMLDivElement>(null);
   const whatWeDoRef = useRef<HTMLDivElement>(null);
@@ -62,6 +76,14 @@ export const HomePage: React.FC = () => {
     
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (scrollY > 600 && !showFirstText) {
+      setTimeout(() => setShowFirstText(true), 400); // Delay text after image
+    } else if (scrollY <= 600 && showFirstText) {
+      setShowFirstText(false);
+    }
+  }, [scrollY]);
 
   const popularServices = [
     {
@@ -248,7 +270,7 @@ export const HomePage: React.FC = () => {
             <div className={`flex flex-col sm:flex-row gap-6 justify-start items-start transition-all duration-700 delay-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
               <button
                 onClick={() => navigate('/login')}
-                className="group relative px-8 py-4 bg-black dark:bg-white text-white dark:text-black font-medium text-lg rounded-full overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+                className="group relative px-8 py-4 bg-black dark:bg-white text-white dark:text-black font-medium text-lg rounded-full overflow-hidden transition-all duration-300 hover:scale-102 hover:shadow-2xl"
               >
                 <span className="relative z-10 transition-all duration-300 group-hover:translate-x-1">Let's Talk</span>
                 <div className="absolute inset-0 bg-green-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
@@ -256,7 +278,7 @@ export const HomePage: React.FC = () => {
               
               <button
                 onClick={() => navigate('/login')}
-                className="px-8 py-4 border-2 border-black dark:border-white text-black dark:text-white font-medium text-lg rounded-full hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black transition-all duration-300 hover:scale-105 hover:shadow-xl"
+                className="px-8 py-4 border-2 border-black dark:border-white text-black dark:text-white font-medium text-lg rounded-full hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black transition-all duration-300 hover:scale-102 hover:shadow-xl"
               >
                 Get Started
               </button>
@@ -271,162 +293,217 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* What We Do Section */}
-      <section ref={whatWeDoRef} className="py-32 px-6">
+      <section ref={whatWeDoRef} className="py-32">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-20">
-            <h2 className={`text-6xl lg:text-7xl font-bold mb-8 transition-all duration-1000 ${scrollY > 500 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+            <h2 className={`text-6xl lg:text-7xl font-bold mb-8 transition-all duration-1000 ${scrollY > 300 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
               What we do
             </h2>
-            <p className={`text-xl lg:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto transition-all duration-1000 delay-200 ${scrollY > 500 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-              We create memorable experiences with smooth animations and interactive elements that keep users engaged.
+            {/* Updated description */}
+            <p className={`text-xl lg:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto transition-all duration-1000 delay-200 ${scrollY > 300 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+              We empower businesses and freelancers to connect, collaborate, and succeed. Our platform bridges the gap between clients and top talent, while providing seamless tools for project management, communication, and secure payments.
             </p>
           </div>
 
           {/* Interactive Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            <div className="space-y-8">
-              <div className={`group transition-all duration-1000 delay-300 ${scrollY > 600 ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'}`}>
-                <h3 className="text-3xl font-bold mb-4">3D card hover effect</h3>
-                <div className="w-full h-64 bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900 dark:to-green-800 rounded-2xl transform group-hover:rotate-y-12 group-hover:scale-105 transition-all duration-700 shadow-lg hover:shadow-2xl"></div>
+          <div className="flex flex-col gap-16">
+            {/* First image and text */}
+            <div className="flex flex-col lg:flex-row items-center gap-8">
+              <div className={`group transition-all duration-1000 delay-300 ${scrollY > 400 ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'}`}> 
+                <img
+                  src="https://images.unsplash.com/photo-1521737852567-6949f3f9f2b5?auto=format&fit=crop&w=800&q=80"
+                  alt="Freelancers and clients connecting handshake"
+                  className="w-80 h-64 object-cover rounded-2xl shadow-lg group-hover:scale-102 transition-transform duration-700"
+                />
               </div>
-              
-              <div className={`group transition-all duration-1000 delay-500 ${scrollY > 600 ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'}`}>
-                <h3 className="text-3xl font-bold mb-4">Image hover parallax</h3>
-                <div className="w-full h-64 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-2xl transform group-hover:translate-x-4 group-hover:scale-105 transition-all duration-700 shadow-lg hover:shadow-2xl"></div>
+              <div className={`flex-1 transition-all duration-1000 delay-400 ${scrollY > 400 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'}`}> 
+                <h3 className="text-3xl lg:text-4xl font-bold mb-2 text-green-700 dark:text-green-400">Connects Freelancers and Clients</h3>
+                <p className="text-lg lg:text-xl text-gray-600 dark:text-gray-300 leading-relaxed">
+                  It allows clients to post projects or gigs and freelancers to offer services, enabling both parties to find suitable work or talent.
+                </p>
               </div>
             </div>
-
-            <div className="space-y-8">
-              <p className={`text-lg text-gray-600 dark:text-gray-300 leading-relaxed transition-all duration-1000 delay-400 ${scrollY > 600 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'}`}>
-                There are many more eye-catching techniques that make your website stand out from the crowd.
-              </p>
-              
-              <div className="space-y-4">
-                <div className={`flex items-center space-x-4 transition-all duration-1000 delay-600 ${scrollY > 600 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'}`}>
-                  <div className="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                    <span className="text-2xl">🐌</span>
-                  </div>
-                  <span className="text-xl font-medium">slow</span>
-                </div>
-                
-                <div className={`flex items-center space-x-4 transition-all duration-1000 delay-700 ${scrollY > 600 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'}`}>
-                  <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                    <span className="text-2xl">⚡</span>
-                  </div>
-                  <span className="text-xl font-medium">speedy</span>
-                </div>
+            {/* Second image and text */}
+            <div className="flex flex-col lg:flex-row items-center gap-8">
+              <div className={`group transition-all duration-1000 delay-800 ${scrollY > 800 ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'}`}> 
+                <img
+                  src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=800&q=80"
+                  alt="Project management and payments team collaboration"
+                  className="w-80 h-64 object-cover rounded-2xl shadow-lg group-hover:scale-102 transition-transform duration-700"
+                />
               </div>
-              
-              <p className={`text-lg text-gray-600 dark:text-gray-300 leading-relaxed transition-all duration-1000 delay-800 ${scrollY > 600 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'}`}>
-                Parallax scrolling is a trending web design technique to add depth and visual interest. 
-                It creates a dynamic experience that keeps users engaged.
-              </p>
+              <div className={`flex-1 transition-all duration-1000 delay-1100 ${scrollY > 800 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'}`}> 
+                <h3 className="text-3xl lg:text-4xl font-bold mb-2 text-green-700 dark:text-green-400">Facilitates Project Management and Payments</h3>
+                <p className="text-lg lg:text-xl text-gray-600 dark:text-gray-300 leading-relaxed">
+                  It provides tools for messaging, tracking work progress, handling payments, and reviewing completed jobs, ensuring a smooth workflow from start to finish.
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Full Screen Transition */}
-      <section ref={transitionRef} className="py-32 px-6 bg-black dark:bg-white text-white dark:text-black relative overflow-hidden">
-        <div className={`absolute inset-0 bg-gradient-to-r from-green-600/20 to-blue-600/20 transition-all duration-1000 ${scrollY > 1200 ? 'opacity-100' : 'opacity-0'}`}></div>
-        <div className="max-w-6xl mx-auto text-center relative z-10">
-          <h2 className={`text-6xl lg:text-7xl font-bold mb-8 transition-all duration-1000 ${scrollY > 1200 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-            Full screen transition
-          </h2>
-          <p className={`text-xl lg:text-2xl text-gray-300 dark:text-gray-600 max-w-3xl mx-auto transition-all duration-1000 delay-200 ${scrollY > 1200 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-            Smooth transitions between sections create a seamless user experience.
-          </p>
-        </div>
-      </section>
+      {/* Divider for clear separation */}
+      <div className="h-12 md:h-24"></div>
 
       {/* Popular Services */}
-      <section ref={servicesRef} className="py-32 px-6">
-        <div className="max-w-6xl mx-auto">
+      <section ref={servicesRef} className="py-32 px-6 bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
+        <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">
-            <h2 className={`text-6xl lg:text-7xl font-bold mb-8 transition-all duration-1000 ${scrollY > 1800 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-              Services
+            <h2 className={`text-6xl lg:text-7xl font-bold mb-8 transition-all duration-1000 ${scrollY > 1200 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+              Our Services
             </h2>
-            <p className={`text-xl lg:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto transition-all duration-1000 delay-200 ${scrollY > 1800 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-              We offer a range of services focused on creative solutions—whether it's brand building or digital innovation.
+            <p className={`text-xl lg:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto transition-all duration-1000 delay-200 ${scrollY > 1200 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+              Discover our comprehensive range of professional services designed to elevate your business
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {popularServices.map((service, index) => (
-              <div
-                key={index}
-                className={`group p-8 border border-gray-200 dark:border-gray-800 rounded-2xl hover:border-green-500 dark:hover:border-green-400 transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 ${scrollY > 2000 + (index * 100) ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
-                style={{ transitionDelay: `${index * 100}ms` }}
-              >
-                <div className="mb-6">
-                  <div className="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-2xl flex items-center justify-center text-green-600 dark:text-green-400 mb-4 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300">
-                    {service.icon}
+          <div className="flex flex-col lg:flex-row items-center gap-16">
+            {/* Left side - Text content */}
+            <div className="flex-1 space-y-8">
+              <div className={`transition-all duration-1000 delay-300 ${scrollY > 1200 ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'}`}>
+                <h3 className="text-4xl font-bold mb-6 text-gray-900 dark:text-white">
+                  Professional Excellence
+                </h3>
+                <p className="text-lg text-gray-600 dark:text-gray-300 leading-relaxed mb-8">
+                  We connect you with top-tier freelancers who deliver exceptional results. 
+                  From web development to creative design, our platform ensures quality and reliability.
+                </p>
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="flex items-center space-x-3">
+                    <CheckCircle className="w-6 h-6 text-green-500" />
+                    <span className="text-gray-700 dark:text-gray-300">Quality Guaranteed</span>
                   </div>
-                  <h3 className="text-2xl font-bold mb-2 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors duration-300">{service.title}</h3>
-                  <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
-                    {service.description}
-                  </p>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                    <span className="font-medium">{service.rating}</span>
-                    <span className="text-gray-500">({service.reviews})</span>
+                  <div className="flex items-center space-x-3">
+                    <CheckCircle className="w-6 h-6 text-green-500" />
+                    <span className="text-gray-700 dark:text-gray-300">Fast Delivery</span>
                   </div>
-                  <span className="font-bold text-green-600 dark:text-green-400">
-                    {service.price}
-                  </span>
+                  <div className="flex items-center space-x-3">
+                    <CheckCircle className="w-6 h-6 text-green-500" />
+                    <span className="text-gray-700 dark:text-gray-300">Secure Payments</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <CheckCircle className="w-6 h-6 text-green-500" />
+                    <span className="text-gray-700 dark:text-gray-300">24/7 Support</span>
+                  </div>
                 </div>
               </div>
-            ))}
+            </div>
+
+            {/* Right side - Card animation */}
+            <div className="flex-1 flex justify-center items-end">
+              <div className={`transition-all duration-1000 delay-500 mt-16 ${scrollY > 1200 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'}`}>
+                <CardSwap width={450} height={380} cardDistance={50} verticalDistance={60} delay={3000} skewAmount={4}>
+                  {popularServices.slice(0, 4).map((service, index) => (
+                    <Card key={index} customClass="p-8 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
+                      <div className="mb-6">
+                        <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center text-white mb-4 group-hover:scale-105 group-hover:rotate-6 transition-all duration-300 shadow-lg">
+                          {service.icon}
+                        </div>
+                        <h3 className="text-2xl font-bold mb-3 text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors duration-300">
+                          {service.title}
+                        </h3>
+                        <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-sm">
+                          {service.description}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700">
+                        <div className="flex items-center space-x-2">
+                          <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                          <span className="font-medium text-sm">{service.rating}</span>
+                          <span className="text-gray-500 text-xs">({service.reviews})</span>
+                        </div>
+                        <span className="font-bold text-green-600 dark:text-green-400 text-lg">
+                          {service.price}
+                        </span>
+                      </div>
+                    </Card>
+                  ))}
+                </CardSwap>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Projects Section */}
-      <section ref={projectsRef} className="py-32 px-6 bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-6xl mx-auto">
+      <section ref={projectsRef} className="py-32 px-6 bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">
-            <h2 className={`text-6xl lg:text-7xl font-bold mb-8 transition-all duration-1000 ${scrollY > 2800 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-              Projects
+            <h2 className={`text-6xl lg:text-7xl font-bold mb-8 transition-all duration-1000 ${scrollY > 2000 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+              Featured Work
             </h2>
-            <p className={`text-xl lg:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto transition-all duration-1000 delay-200 ${scrollY > 2800 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-              Showcase of exceptional work completed by our top freelancers.
+            <p className={`text-xl lg:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto transition-all duration-1000 delay-200 ${scrollY > 2000 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+              Discover exceptional projects that showcase the talent and creativity of our community
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             {featuredWorks.map((work, index) => (
-              <div key={index} className={`group transition-all duration-1000 ${scrollY > 3000 + (index * 200) ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`} style={{ transitionDelay: `${index * 200}ms` }}>
-                <div className="relative overflow-hidden rounded-2xl mb-6">
-                  <img
-                    src={work.image}
-                    alt={work.title}
-                    className="w-full h-64 object-cover transform group-hover:scale-110 transition-transform duration-700"
-                  />
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-500"></div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="text-sm text-green-600 dark:text-green-400 font-medium">
-                    {work.category}
-                  </div>
-                  <h3 className="text-2xl font-bold group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors duration-300">{work.title}</h3>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                      <span className="font-medium">{work.rating}</span>
-                      <span className="text-gray-500">({work.reviews})</span>
+              <div key={index} className={`group transition-all duration-1000 ${scrollY > 1600 + (index * 100) ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`} style={{ transitionDelay: `${index * 100}ms` }}>
+                <div className="relative overflow-hidden rounded-3xl bg-white dark:bg-gray-800 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
+                  <div className="relative overflow-hidden rounded-t-3xl">
+                    <img
+                      src={work.image}
+                      alt={work.title}
+                      className="w-full h-64 object-cover transform group-hover:scale-105 transition-transform duration-700"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    <div className="absolute top-4 left-4">
+                      <span className="px-4 py-2 bg-green-500 text-white text-sm font-medium rounded-full shadow-lg">
+                        {work.category}
+                      </span>
                     </div>
-                    <span className="font-bold text-green-600 dark:text-green-400">
-                      {work.price}
-                    </span>
+                    <div className="absolute top-4 right-4">
+                      <div className="flex items-center space-x-1 bg-white/90 dark:bg-gray-800/90 px-3 py-1 rounded-full">
+                        <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                        <span className="font-medium text-sm">{work.rating}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors duration-300">
+                      {work.title}
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-300 mb-4 leading-relaxed text-sm">
+                      Exceptional work delivered with precision and creativity. This project demonstrates the high quality and professional standards our freelancers maintain.
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-2">
+                          <Users className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm text-gray-500">({work.reviews} reviews)</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <TrendingUp className="w-4 h-4 text-green-500" />
+                          <span className="text-sm text-green-600 dark:text-green-400 font-medium">Featured</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xl font-bold text-green-600 dark:text-green-400">
+                          {work.price}
+                        </span>
+                        <div className="text-xs text-gray-500">Starting Price</div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                      <button className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white font-medium py-2 px-4 rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-300 hover:shadow-lg transform hover:scale-102 text-sm">
+                        View Project Details
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className={`text-center mt-16 transition-all duration-1000 delay-400 ${scrollY > 1800 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+            <button className="group relative px-8 py-4 bg-black dark:bg-white text-white dark:text-black font-medium text-lg rounded-full overflow-hidden transition-all duration-300 hover:scale-102 hover:shadow-2xl">
+              <span className="relative z-10 transition-all duration-300 group-hover:translate-x-1">Explore More Projects</span>
+              <div className="absolute inset-0 bg-green-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
+            </button>
           </div>
         </div>
       </section>
@@ -434,16 +511,16 @@ export const HomePage: React.FC = () => {
       {/* CTA Section */}
       <section ref={ctaRef} className="py-32 px-6">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className={`text-6xl lg:text-7xl font-bold mb-8 transition-all duration-1000 ${scrollY > 3800 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+          <h2 className={`text-6xl lg:text-7xl font-bold mb-8 transition-all duration-1000 ${scrollY > 2200 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
             Get in touch
           </h2>
-          <p className={`text-xl lg:text-2xl text-gray-600 dark:text-gray-300 mb-12 max-w-2xl mx-auto transition-all duration-1000 delay-200 ${scrollY > 3800 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+          <p className={`text-xl lg:text-2xl text-gray-600 dark:text-gray-300 mb-12 max-w-2xl mx-auto transition-all duration-1000 delay-200 ${scrollY > 2200 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
             Ready to start your next project? Let's create something amazing together.
           </p>
           
           <button
             onClick={() => navigate('/login')}
-            className={`group relative px-12 py-6 bg-black dark:bg-white text-white dark:text-black font-bold text-xl rounded-full overflow-hidden transition-all duration-500 hover:scale-105 hover:shadow-2xl ${scrollY > 3800 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
+            className={`group relative px-12 py-6 bg-black dark:bg-white text-white dark:text-black font-bold text-xl rounded-full overflow-hidden transition-all duration-500 hover:scale-102 hover:shadow-2xl ${scrollY > 2200 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
             style={{ transitionDelay: '400ms' }}
           >
             <span className="relative z-10 transition-all duration-300 group-hover:translate-x-2">Let's Talk</span>
@@ -468,7 +545,12 @@ export const HomePage: React.FC = () => {
                 <div
                   key={index}
                   className="group p-6 border border-gray-200 dark:border-gray-800 rounded-2xl hover:border-green-500 dark:hover:border-green-400 transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 bg-white dark:bg-dark-800"
-                  onClick={() => navigate('/featured-project')}
+                  onClick={() => {
+                    setShowPageTransition(true);
+                    setTimeout(() => {
+                      navigate('/featured-project');
+                    }, 700); // Match duration to overlay animation
+                  }}
                   style={{ cursor: 'pointer' }}
                 >
                   <div className="mb-4">
@@ -496,6 +578,7 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       )}
+      <FullScreenTransition show={showPageTransition} />
     </div>
     </>
   );

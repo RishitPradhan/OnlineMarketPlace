@@ -26,36 +26,38 @@ export const authService = {
         throw new Error('Registration failed - no user returned');
       }
 
-      // Create user profile in our custom table
-      const { data: profileData, error: profileError } = await supabase
-        .from('users')
-        .insert([{
-          id: authData.user.id,
-          email: userData.email,
-          first_name: userData.firstName,
-          last_name: userData.lastName,
-          role: userData.role,
-          password_hash: 'managed_by_supabase', // Placeholder since Supabase handles passwords
-        }])
-        .select()
-        .single();
+      // Try to create user profile in our custom table, but don't fail if it doesn't work
+      try {
+        const { data: profileData, error: profileError } = await supabase
+          .from('users')
+          .insert([{
+            id: authData.user.id,
+            email: userData.email,
+            first_name: userData.firstName,
+            last_name: userData.lastName,
+            role: userData.role,
+            password_hash: 'managed_by_supabase', // Placeholder since Supabase handles passwords
+          }])
+          .select()
+          .single();
 
-      if (profileError) {
-        console.error('Profile creation error:', profileError);
-        // If profile creation fails, we should still return the user data
-        // since the auth user was created successfully
-        return {
-          id: authData.user.id,
-          email: userData.email,
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          role: userData.role,
-          createdAt: authData.user.created_at || new Date().toISOString(),
-          updatedAt: authData.user.updated_at || new Date().toISOString(),
-        };
+        if (!profileError && profileData) {
+          return this.mapUserFromDb(profileData);
+        }
+      } catch (error) {
+        console.error('Profile creation error (non-blocking):', error);
       }
 
-      return this.mapUserFromDb(profileData);
+      // Always return user data from auth, even if profile creation fails
+      return {
+        id: authData.user.id,
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        role: userData.role,
+        createdAt: authData.user.created_at || new Date().toISOString(),
+        updatedAt: authData.user.updated_at || new Date().toISOString(),
+      };
     } catch (error) {
       console.error('Registration error:', error);
       throw error;
@@ -78,28 +80,31 @@ export const authService = {
         throw new Error('Login failed - no user returned');
       }
 
-      // Get user profile from our custom table
-      const { data: profileData, error: profileError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', authData.user.id)
-        .single();
+      // Try to get user profile from our custom table, but don't fail if it doesn't exist
+      try {
+        const { data: profileData, error: profileError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', authData.user.id)
+          .single();
 
-      if (profileError) {
-        console.error('Profile fetch error:', profileError);
-        // If profile doesn't exist, create a basic user object from auth data
-        return {
-          id: authData.user.id,
-          email: authData.user.email || loginData.email,
-          firstName: authData.user.user_metadata?.first_name || 'User',
-          lastName: authData.user.user_metadata?.last_name || '',
-          role: authData.user.user_metadata?.role || 'client',
-          createdAt: authData.user.created_at || new Date().toISOString(),
-          updatedAt: authData.user.updated_at || new Date().toISOString(),
-        };
+        if (!profileError && profileData) {
+          return this.mapUserFromDb(profileData);
+        }
+      } catch (error) {
+        console.error('Profile fetch error (non-blocking):', error);
       }
 
-      return this.mapUserFromDb(profileData);
+      // Always return user data from auth, even if profile doesn't exist
+      return {
+        id: authData.user.id,
+        email: authData.user.email || loginData.email,
+        firstName: authData.user.user_metadata?.first_name || 'User',
+        lastName: authData.user.user_metadata?.last_name || '',
+        role: authData.user.user_metadata?.role || 'client',
+        createdAt: authData.user.created_at || new Date().toISOString(),
+        updatedAt: authData.user.updated_at || new Date().toISOString(),
+      };
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -124,28 +129,31 @@ export const authService = {
         return null;
       }
 
-      // Try to get user profile from our custom table
-      const { data: profileData, error: profileError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', authUser.id)
-        .single();
+      // Try to get user profile from our custom table, but don't fail if it doesn't exist
+      try {
+        const { data: profileData, error: profileError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
 
-      if (profileError) {
-        console.error('Profile fetch error:', profileError);
-        // If profile doesn't exist, create a basic user object from auth data
-        return {
-          id: authUser.id,
-          email: authUser.email || '',
-          firstName: authUser.user_metadata?.first_name || 'User',
-          lastName: authUser.user_metadata?.last_name || '',
-          role: authUser.user_metadata?.role || 'client',
-          createdAt: authUser.created_at || new Date().toISOString(),
-          updatedAt: authUser.updated_at || new Date().toISOString(),
-        };
+        if (!profileError && profileData) {
+          return this.mapUserFromDb(profileData);
+        }
+      } catch (error) {
+        console.error('Profile fetch error (non-blocking):', error);
       }
 
-      return this.mapUserFromDb(profileData);
+      // Always return user data from auth, even if profile doesn't exist
+      return {
+        id: authUser.id,
+        email: authUser.email || '',
+        firstName: authUser.user_metadata?.first_name || 'User',
+        lastName: authUser.user_metadata?.last_name || '',
+        role: authUser.user_metadata?.role || 'client',
+        createdAt: authUser.created_at || new Date().toISOString(),
+        updatedAt: authUser.updated_at || new Date().toISOString(),
+      };
     } catch (error) {
       console.error('Get current user error:', error);
       return null;
