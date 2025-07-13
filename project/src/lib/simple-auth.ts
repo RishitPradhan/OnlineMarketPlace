@@ -30,6 +30,30 @@ export const simpleAuthService = {
         throw new Error('Registration failed - no user returned');
       }
 
+      // Sync user data to users table for messaging functionality
+      try {
+        const { error: syncError } = await supabase
+          .from('users')
+          .insert({
+            id: authData.user.id,
+            email: userData.email,
+            first_name: userData.firstName,
+            last_name: userData.lastName,
+            role: userData.role as 'client' | 'freelancer' | 'admin',
+            password_hash: 'synced_from_auth' // Placeholder since we don't store passwords
+          });
+
+        if (syncError) {
+          console.warn('Failed to sync user to users table:', syncError);
+          // Don't throw error here as auth was successful
+        } else {
+          console.log('✅ User synced to users table successfully');
+        }
+      } catch (syncError) {
+        console.warn('Error syncing user to users table:', syncError);
+        // Don't throw error here as auth was successful
+      }
+
       // Check if email confirmation is required
       if (authData.user && !authData.user.email_confirmed_at) {
         console.log('⚠️ Email confirmation required. User needs to check their email.');
@@ -103,6 +127,37 @@ export const simpleAuthService = {
         console.log('💡 Try running this SQL in Supabase Dashboard:');
         console.log('UPDATE auth.users SET email_confirmed_at = NOW() WHERE email = \'' + loginData.email + '\';');
         throw new Error('Please check your email and click the confirmation link before logging in. If no email received, try disabling email confirmation in Supabase Dashboard.');
+      }
+
+      // Ensure user exists in users table for messaging
+      try {
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', authData.user.id)
+          .single();
+
+        if (userError || !userData) {
+          console.log('User not found in users table, creating entry...');
+          const { error: insertError } = await supabase
+            .from('users')
+            .insert({
+              id: authData.user.id,
+              email: authData.user.email,
+              first_name: authData.user.user_metadata?.first_name || 'User',
+              last_name: authData.user.user_metadata?.last_name || '',
+              role: (authData.user.user_metadata?.role || 'client') as 'client' | 'freelancer' | 'admin',
+              password_hash: 'synced_from_auth'
+            });
+
+          if (insertError) {
+            console.warn('Failed to sync user to users table:', insertError);
+          } else {
+            console.log('✅ User synced to users table successfully');
+          }
+        }
+      } catch (syncError) {
+        console.warn('Error checking/syncing user in users table:', syncError);
       }
 
       // Return user data from auth metadata
@@ -219,6 +274,37 @@ This will show you if your user exists and if email is confirmed.`);
       if (!authUser) {
         console.log('No user found');
         return null;
+      }
+
+      // Ensure user exists in users table for messaging
+      try {
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
+
+        if (userError || !userData) {
+          console.log('User not found in users table, creating entry...');
+          const { error: insertError } = await supabase
+            .from('users')
+            .insert({
+              id: authUser.id,
+              email: authUser.email,
+              first_name: authUser.user_metadata?.first_name || 'User',
+              last_name: authUser.user_metadata?.last_name || '',
+              role: (authUser.user_metadata?.role || 'client') as 'client' | 'freelancer' | 'admin',
+              password_hash: 'synced_from_auth'
+            });
+
+          if (insertError) {
+            console.warn('Failed to sync user to users table:', insertError);
+          } else {
+            console.log('✅ User synced to users table successfully');
+          }
+        }
+      } catch (syncError) {
+        console.warn('Error checking/syncing user in users table:', syncError);
       }
 
       // Return user data from auth metadata

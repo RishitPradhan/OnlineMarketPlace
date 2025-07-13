@@ -8,7 +8,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { LoadingScreen } from '../ui/LoadingScreen';
-import { MockMessaging } from './MockMessaging';
 
 
 
@@ -315,341 +314,6 @@ function OrderTrackingTable() {
   );
 }
 
-function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | null; currentUser: UserItem }) {
-  const [messages, setMessages] = React.useState<any[]>([]);
-  const [input, setInput] = React.useState('');
-  const [loading, setLoading] = React.useState(true);
-  const messagesEndRef = React.useRef<HTMLDivElement>(null);
-  const messagesContainerRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    if (!selectedChat) return;
-
-    let mounted = true;
-    setLoading(true);
-    
-    // Fetch messages for the selected chat
-    const fetchMessages = async () => {
-      try {
-        console.log('Fetching messages for:', selectedChat);
-        console.log('Current user:', currentUser.id);
-        
-        let query;
-        if (selectedChat.type === 'user') {
-          // For user-to-user messages, we need to get messages between these two specific users
-          const queryString = `and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedChat.id}),and(sender_id.eq.${selectedChat.id},receiver_id.eq.${currentUser.id})`;
-          console.log('Query string:', queryString);
-          
-          query = supabase
-            .from('messages')
-            .select('*')
-            .or(queryString)
-            .order('created_at', { ascending: true });
-        } else {
-          query = supabase
-            .from('messages')
-            .select('*')
-            .eq('group_id', selectedChat.id)
-            .order('created_at', { ascending: true });
-        }
-
-        const { data, error } = await query;
-        console.log('Query result:', { data, error });
-        
-        if (error) {
-          console.error('Error fetching messages:', error);
-          // Fallback sample messages when database fetch fails
-          if (selectedChat.type === 'user') {
-            const sampleMessages = [
-              {
-                id: '1',
-                sender_id: selectedChat.id,
-                receiver_id: currentUser.id,
-                content: 'Hey! I have a project I need help with.',
-                created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString()
-              },
-              {
-                id: '2',
-                sender_id: currentUser.id,
-                receiver_id: selectedChat.id,
-                content: 'Hi! I would love to help. What kind of project is it?',
-                created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString()
-              },
-              {
-                id: '3',
-                sender_id: selectedChat.id,
-                receiver_id: currentUser.id,
-                content: 'It\'s a website redesign. Can we discuss the details?',
-                created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString()
-              }
-            ];
-            if (mounted) {
-              setMessages(sampleMessages);
-            }
-          }
-        } else if (mounted) {
-          setMessages(data || []);
-        }
-      } catch (error) {
-        console.error('Error fetching messages:', error);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    fetchMessages();
-
-    // Subscribe to new messages with improved filtering
-    const sub = supabase
-      .channel(`realtime:messages:${selectedChat.id}`)
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'messages',
-        filter: selectedChat.type === 'user' 
-          ? `or(and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedChat.id}),and(sender_id.eq.${selectedChat.id},receiver_id.eq.${currentUser.id}))`
-          : `group_id.eq.${selectedChat.id}`
-      }, (payload: { new: any }) => {
-        if (mounted) {
-          console.log('New message received:', payload.new);
-          setMessages(msgs => {
-            // Check if message already exists to avoid duplicates
-            const exists = msgs.find(msg => msg.id === payload.new.id);
-            if (exists) return msgs;
-            return [...msgs, payload.new];
-          });
-        }
-      })
-      .subscribe();
-
-    return () => {
-      mounted = false;
-      supabase.removeChannel(sub);
-    };
-  }, [selectedChat, currentUser.id]);
-
-  // Track previous selectedChat and last message id
-  const prevChatIdRef = useRef<string | null>(null);
-  const prevLastMsgIdRef = useRef<string | null>(null);
-
-  // Scroll to bottom logic: only scroll if content is actually scrollable
-  useEffect(() => {
-    if (loading || !selectedChat) return;
-    if (messages.length === 0) return;
-
-    const lastMsgId = messages[messages.length - 1]?.id;
-    const chatId = selectedChat.id;
-
-    const scroll = () => {
-      const container = messagesContainerRef.current;
-      if (!container) return;
-
-      // Only scroll if content is actually scrollable
-      const isScrollable = container.scrollHeight > container.clientHeight + 8; // 8px fudge for borders
-      if (isScrollable) {
-        container.scrollTop = container.scrollHeight;
-      }
-
-      prevChatIdRef.current = chatId;
-      prevLastMsgIdRef.current = lastMsgId;
-    };
-
-    requestAnimationFrame(scroll);
-  }, [loading, selectedChat, messages]);
-
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedChat || !input.trim() || !currentUser) return;
-
-    try {
-      const newMessage = {
-        sender_id: currentUser.id,
-        content: input.trim(),
-        ...(selectedChat.type === 'user' 
-          ? { receiver_id: selectedChat.id }
-          : { group_id: selectedChat.id }
-        ),
-      };
-
-      console.log('Sending message:', newMessage);
-
-      const { data, error } = await supabase
-        .from('messages')
-        .insert([newMessage])
-        .select();
-
-      console.log('Send message result:', { data, error });
-
-      if (error) {
-        console.error('Error sending message:', error);
-        // Fallback: add message to UI even if database insert fails
-        const fallbackMessage = {
-          id: Date.now().toString(),
-          sender_id: currentUser.id,
-          receiver_id: selectedChat.type === 'user' ? selectedChat.id : undefined,
-          group_id: selectedChat.type === 'group' ? selectedChat.id : undefined,
-          content: input.trim(),
-          created_at: new Date().toISOString()
-        };
-        setMessages(prev => [...prev, fallbackMessage]);
-        setInput('');
-      } else {
-        setInput('');
-        // Optimistically add the message to the UI
-        if (data && data[0]) {
-          setMessages(prev => [...prev, data[0]]);
-        }
-      }
-    } catch (error) {
-      console.error('Error sending message:', error);
-    }
-  };
-
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase();
-  };
-
-  const getRandomColor = (id: string) => {
-    const colors = ['bg-green-500', 'bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-yellow-500', 'bg-indigo-500'];
-    return colors[id.charCodeAt(0) % colors.length];
-  };
-
-  if (!currentUser) {
-    return <LoadingScreen message="Loading user data..." size="sm" />;
-  }
-
-  if (!selectedChat) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-12 h-12 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-          </div>
-          <h3 className="text-xl font-semibold text-white mb-2">Select a conversation</h3>
-          <p className="text-green-400/60">Choose a user or group to start messaging</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col h-full">
-      {/* Chat Header */}
-      <div className="flex items-center p-4 border-b border-green-500/20 bg-dark-900/30">
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm mr-3 ${
-          selectedChat.type === 'user' ? getRandomColor(selectedChat.id) : 'bg-blue-500'
-        }`}>
-          {getInitials(selectedChat.name)}
-        </div>
-        <div className="flex-1">
-          <h3 className="text-white font-semibold">{selectedChat.name}</h3>
-          <p className="text-green-400/60 text-sm">
-            {selectedChat.type === 'user' ? 'Online' : 'Group'}
-          </p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <button className="p-2 text-green-400 hover:text-green-300 transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-            </svg>
-          </button>
-          <button className="p-2 text-green-400 hover:text-green-300 transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      {/* Messages Area */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 flex flex-col space-y-4">
-        {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <LoadingScreen message="Loading messages..." size="sm" />
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-white mb-2">No messages yet</h3>
-              <p className="text-green-400/60 text-sm">Start the conversation!</p>
-            </div>
-          </div>
-        ) : (
-          messages.map((msg, index) => {
-            const isOwnMessage = msg.sender_id === currentUser.id;
-            const showAvatar = index === 0 || messages[index - 1]?.sender_id !== msg.sender_id;
-            return (
-              <div
-                key={msg.id}
-                className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-              >
-                <div className={`flex ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'} items-end max-w-xs lg:max-w-md`}>
-                  {!isOwnMessage && showAvatar && (
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-xs mr-2 mb-1 ${getRandomColor(msg.sender_id)}`}>
-                      {getInitials(msg.sender_id)}
-                    </div>
-                  )}
-                  <div className={`px-4 py-2 rounded-2xl shadow-sm ${
-                    isOwnMessage 
-                      ? 'bg-green-600 text-white rounded-br-md' 
-                      : 'bg-dark-800 text-white rounded-bl-md border border-green-500/20'
-                  }`}>
-                    <p className="text-sm">{msg.content}</p>
-                    <p className={`text-xs mt-1 ${
-                      isOwnMessage ? 'text-green-200' : 'text-green-400/60'
-                    }`}>
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Message Input */}
-      <div className="p-4 border-t border-green-500/20 bg-dark-900/30">
-        <form onSubmit={sendMessage} className="flex items-center space-x-3">
-          <button
-            type="button"
-            className="p-2 text-green-400 hover:text-green-300 transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828L18 9.828a2 2 0 000-2.828z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01" />
-            </svg>
-          </button>
-          <input
-            type="text"
-            placeholder="Type your message..."
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            className="flex-1 px-4 py-3 bg-dark-800/50 border border-green-500/30 rounded-lg text-white placeholder-green-400/60 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-          />
-          <button
-            type="submit"
-            disabled={!input.trim()}
-            className="p-3 bg-green-600 hover:bg-green-700 disabled:bg-green-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-            </svg>
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
-
 // Type definitions
 interface UserItem { id: string; first_name: string; last_name: string; }
 interface GroupItem { id: string; name: string; }
@@ -685,30 +349,33 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
   useEffect(() => {
     const fetchRecentChats = async () => {
       try {
-        // Get users who have sent messages to current user
+        // Get all messages where current user is receiver
         const { data: messagesData, error: messagesError } = await supabase
           .from('messages')
-          .select('sender_id, users!inner(id, first_name, last_name)')
+          .select('sender_id, sender:users!sender_id(id, first_name, last_name)')
           .eq('receiver_id', currentUser.id)
           .neq('sender_id', currentUser.id);
 
-        if (!messagesError && messagesData) {
+        if (!messagesError && messagesData && messagesData.length > 0) {
           // Extract unique users from messages
           const uniqueUsers = messagesData.reduce((acc: UserItem[], msg: any) => {
-            const user = msg.users;
-            if (!acc.find(u => u.id === user.id)) {
+            if (msg.sender && !acc.find(u => u.id === msg.sender.id)) {
               acc.push({
-                id: user.id,
-                first_name: user.first_name,
-                last_name: user.last_name
+                id: msg.sender.id,
+                first_name: msg.sender.first_name,
+                last_name: msg.sender.last_name
               });
             }
             return acc;
           }, []);
+          
           setRecentChats(uniqueUsers);
+        } else {
+          setRecentChats([]);
         }
       } catch (error) {
         console.error('Error fetching recent chats:', error);
+        setRecentChats([]);
       }
     };
 
@@ -725,7 +392,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
         // If someone sent a message to current user, add them to recent chats
         if (newMessage.receiver_id === currentUser.id && newMessage.sender_id !== currentUser.id) {
           try {
-            const { data: userData } = await supabase
+            const { data: userData, error: userError } = await supabase
               .from('users')
               .select('id, first_name, last_name')
               .eq('id', newMessage.sender_id)
@@ -949,6 +616,340 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
     </div>
   );
 };
+
+function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | null; currentUser: UserItem }) {
+  const [messages, setMessages] = React.useState<any[]>([]);
+  const [input, setInput] = React.useState('');
+  const [loading, setLoading] = React.useState(true);
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const messagesContainerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!selectedChat) return;
+
+    let mounted = true;
+    setLoading(true);
+    
+    // Fetch messages for the selected chat
+    const fetchMessages = async () => {
+      try {
+        let query;
+        if (selectedChat.type === 'user') {
+          // For user-to-user messages, we need to get messages between these two specific users
+          const queryString = `and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedChat.id}),and(sender_id.eq.${selectedChat.id},receiver_id.eq.${currentUser.id})`;
+          
+          query = supabase
+            .from('messages')
+            .select('*')
+            .or(queryString)
+            .order('created_at', { ascending: true });
+        } else {
+          query = supabase
+            .from('messages')
+            .select('*')
+            .eq('group_id', selectedChat.id)
+            .order('created_at', { ascending: true });
+        }
+
+        const { data, error } = await query;
+        
+        if (error) {
+          console.error('Error fetching messages:', error);
+          // Fallback sample messages when database fetch fails
+          if (selectedChat.type === 'user') {
+            const sampleMessages = [
+              {
+                id: '1',
+                sender_id: selectedChat.id,
+                receiver_id: currentUser.id,
+                content: 'Hey! I have a project I need help with.',
+                created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString()
+              },
+              {
+                id: '2',
+                sender_id: currentUser.id,
+                receiver_id: selectedChat.id,
+                content: 'Hi! I would love to help. What kind of project is it?',
+                created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString()
+              },
+              {
+                id: '3',
+                sender_id: selectedChat.id,
+                receiver_id: currentUser.id,
+                content: 'It\'s a website redesign. Can we discuss the details?',
+                created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString()
+              }
+            ];
+            if (mounted) {
+              setMessages(sampleMessages);
+            }
+          }
+        } else if (mounted) {
+          setMessages(data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    fetchMessages();
+
+    // Subscribe to new messages with improved filtering
+    const sub = supabase
+      .channel(`realtime:messages:${selectedChat.id}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'messages'
+      }, (payload: { new: any }) => {
+        if (mounted) {
+          const newMessage = payload.new;
+          
+          // Check if this message belongs to the current chat
+          const isRelevant = selectedChat.type === 'user' 
+            ? (newMessage.sender_id === currentUser.id && newMessage.receiver_id === selectedChat.id) ||
+              (newMessage.sender_id === selectedChat.id && newMessage.receiver_id === currentUser.id)
+            : newMessage.group_id === selectedChat.id;
+          
+          if (isRelevant) {
+            setMessages(msgs => {
+              // Check if message already exists to avoid duplicates
+              const exists = msgs.find(msg => msg.id === newMessage.id);
+              if (exists) {
+                return msgs;
+              }
+              return [...msgs, newMessage];
+            });
+          }
+        }
+      })
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      supabase.removeChannel(sub);
+    };
+  }, [selectedChat, currentUser.id]);
+
+  // Track previous selectedChat and last message id
+  const prevChatIdRef = useRef<string | null>(null);
+  const prevLastMsgIdRef = useRef<string | null>(null);
+
+  // Scroll to bottom logic: only scroll if content is actually scrollable
+  useEffect(() => {
+    if (loading || !selectedChat) return;
+    if (messages.length === 0) return;
+
+    const lastMsgId = messages[messages.length - 1]?.id;
+    const chatId = selectedChat.id;
+
+    const scroll = () => {
+      const container = messagesContainerRef.current;
+      if (!container) return;
+
+      // Only scroll if content is actually scrollable
+      const isScrollable = container.scrollHeight > container.clientHeight + 8; // 8px fudge for borders
+      if (isScrollable) {
+        container.scrollTop = container.scrollHeight;
+      }
+
+      prevChatIdRef.current = chatId;
+      prevLastMsgIdRef.current = lastMsgId;
+    };
+
+    requestAnimationFrame(scroll);
+  }, [loading, selectedChat, messages]);
+
+  const sendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedChat || !input.trim() || !currentUser) return;
+
+    try {
+      const newMessage = {
+        sender_id: currentUser.id,
+        content: input.trim(),
+        ...(selectedChat.type === 'user' 
+          ? { receiver_id: selectedChat.id }
+          : { group_id: selectedChat.id }
+        ),
+      };
+
+      const { data, error } = await supabase
+        .from('messages')
+        .insert([newMessage])
+        .select();
+
+      if (error) {
+        console.error('Error sending message:', error);
+        // Fallback: add message to UI even if database insert fails
+        const fallbackMessage = {
+          id: Date.now().toString(),
+          sender_id: currentUser.id,
+          receiver_id: selectedChat.type === 'user' ? selectedChat.id : undefined,
+          group_id: selectedChat.type === 'group' ? selectedChat.id : undefined,
+          content: input.trim(),
+          created_at: new Date().toISOString()
+        };
+        setMessages(prev => [...prev, fallbackMessage]);
+        setInput('');
+      } else {
+        setInput('');
+        // Optimistically add the message to the UI
+        if (data && data[0]) {
+          setMessages(prev => [...prev, data[0]]);
+        }
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
+  };
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  };
+
+  const getRandomColor = (id: string) => {
+    const colors = ['bg-green-500', 'bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-yellow-500', 'bg-indigo-500'];
+    return colors[id.charCodeAt(0) % colors.length];
+  };
+
+  if (!currentUser) {
+    return <LoadingScreen message="Loading user data..." size="sm" />;
+  }
+
+  if (!selectedChat) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg className="w-12 h-12 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-semibold text-white mb-2">Select a conversation</h3>
+          <p className="text-green-400/60">Choose a user or group to start messaging</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Chat Header */}
+      <div className="flex items-center p-4 border-b border-green-500/20 bg-dark-900/30">
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm mr-3 ${
+          selectedChat.type === 'user' ? getRandomColor(selectedChat.id) : 'bg-blue-500'
+        }`}>
+          {getInitials(selectedChat.name)}
+        </div>
+        <div className="flex-1">
+          <h3 className="text-white font-semibold">{selectedChat.name}</h3>
+          <p className="text-green-400/60 text-sm">
+            {selectedChat.type === 'user' ? 'Online' : 'Group'}
+          </p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <button className="p-2 text-green-400 hover:text-green-300 transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+            </svg>
+          </button>
+          <button className="p-2 text-green-400 hover:text-green-300 transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Messages Area */}
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 flex flex-col space-y-4">
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <LoadingScreen message="Loading messages..." size="sm" />
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-white mb-2">No messages yet</h3>
+              <p className="text-green-400/60 text-sm">Start the conversation!</p>
+            </div>
+          </div>
+        ) : (
+          messages.map((msg, index) => {
+            const isOwnMessage = msg.sender_id === currentUser.id;
+            const showAvatar = index === 0 || messages[index - 1]?.sender_id !== msg.sender_id;
+            return (
+              <div
+                key={msg.id}
+                className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+              >
+                <div className={`flex ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'} items-end max-w-xs lg:max-w-md`}>
+                  {!isOwnMessage && showAvatar && (
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-xs mr-2 mb-1 ${getRandomColor(msg.sender_id)}`}>
+                      {getInitials(msg.sender_id)}
+                    </div>
+                  )}
+                  <div className={`px-4 py-2 rounded-2xl shadow-sm ${
+                    isOwnMessage 
+                      ? 'bg-green-600 text-white rounded-br-md' 
+                      : 'bg-dark-800 text-white rounded-bl-md border border-green-500/20'
+                  }`}>
+                    <p className="text-sm">{msg.content}</p>
+                    <p className={`text-xs mt-1 ${
+                      isOwnMessage ? 'text-green-200' : 'text-green-400/60'
+                    }`}>
+                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Message Input */}
+      <div className="p-4 border-t border-green-500/20 bg-dark-900/30">
+        <form onSubmit={sendMessage} className="flex items-center space-x-3">
+          <button
+            type="button"
+            className="p-2 text-green-400 hover:text-green-300 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828L18 9.828a2 2 0 000-2.828z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01" />
+            </svg>
+          </button>
+          <input
+            type="text"
+            placeholder="Type your message..."
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            className="flex-1 px-4 py-3 bg-dark-800/50 border border-green-500/30 rounded-lg text-white placeholder-green-400/60 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          />
+          <button
+            type="submit"
+            disabled={!input.trim()}
+            className="p-3 bg-green-600 hover:bg-green-700 disabled:bg-green-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 export const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
