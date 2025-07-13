@@ -18,6 +18,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
   }
 });
 
@@ -25,3 +30,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 supabase.auth.onAuthStateChange((event, session) => {
   console.log('Auth state changed:', event, session?.user?.email);
 });
+
+// Test real-time connection
+supabase
+  .channel('test-connection')
+  .on('system', { event: 'connect' }, () => {
+    console.log('✅ Supabase real-time connected');
+  })
+  .on('system', { event: 'disconnect' }, () => {
+    console.log('❌ Supabase real-time disconnected');
+  })
+  .subscribe((status) => {
+    console.log('🔌 Supabase connection status:', status);
+  });

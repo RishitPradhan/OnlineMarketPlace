@@ -349,12 +349,26 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
   useEffect(() => {
     const fetchRecentChats = async () => {
       try {
+        // Debug: Check current user ID
+        console.log('🔍 Current user ID from auth:', currentUser.id);
+        
+        // Check if user exists in users table
+        const { data: userCheck, error: userCheckError } = await supabase
+          .from('users')
+          .select('id, first_name, last_name')
+          .eq('id', currentUser.id)
+          .single();
+        
+        console.log('🔍 User check in users table:', { userCheck, userCheckError });
+        
         // Get all messages where current user is receiver
         const { data: messagesData, error: messagesError } = await supabase
           .from('messages')
           .select('sender_id, sender:users!sender_id(id, first_name, last_name)')
           .eq('receiver_id', currentUser.id)
           .neq('sender_id', currentUser.id);
+
+        console.log('📨 Recent chats query result:', { messagesData, messagesError });
 
         if (!messagesError && messagesData && messagesData.length > 0) {
           // Extract unique users from messages
@@ -369,12 +383,13 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
             return acc;
           }, []);
           
+          console.log('👥 Unique users found:', uniqueUsers);
           setRecentChats(uniqueUsers);
         } else {
           setRecentChats([]);
         }
       } catch (error) {
-        console.error('Error fetching recent chats:', error);
+        console.error('❌ Error fetching recent chats:', error);
         setRecentChats([]);
       }
     };
@@ -384,19 +399,49 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
 
   // Subscribe to new messages to update recent chats
   useEffect(() => {
+    console.log('🔔 Setting up real-time subscription for recent chats');
+    
+    // Test basic connection
+    const connectionTest = supabase
+      .channel('connection-test')
+      .on('system', { event: 'disconnect' }, () => {
+        console.log('🔌 Disconnected from real-time');
+      })
+      .on('system', { event: 'connect' }, () => {
+        console.log('🔌 Connected to real-time');
+      })
+      .subscribe((status) => {
+        console.log('🔌 Connection test status:', status);
+      });
+    
+    // Test subscription to see if real-time is working
+    const testSub = supabase
+      .channel('test-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
+        console.log('🧪 TEST: Any message change detected:', payload);
+      })
+      .subscribe((status) => {
+        console.log('🧪 TEST subscription status:', status);
+      });
+    
     const sub = supabase
       .channel('realtime:recent-chats')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload: { new: any }) => {
         const newMessage = payload.new;
+        console.log('📨 New message received in real-time:', newMessage);
+        console.log('👤 Current user ID:', currentUser.id);
         
         // If someone sent a message to current user, add them to recent chats
         if (newMessage.receiver_id === currentUser.id && newMessage.sender_id !== currentUser.id) {
+          console.log('✅ Message is for current user, fetching sender data...');
           try {
             const { data: userData, error: userError } = await supabase
               .from('users')
               .select('id, first_name, last_name')
               .eq('id', newMessage.sender_id)
               .single();
+
+            console.log('👤 User data fetched:', { userData, userError });
 
             if (userData) {
               setRecentChats(prev => {
@@ -408,20 +453,29 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
                 
                 // Add user if not already in recent chats
                 if (!prev.find(u => u.id === user.id)) {
+                  console.log('➕ Adding new user to recent chats:', user);
                   return [user, ...prev];
                 }
+                console.log('⚠️ User already in recent chats');
                 return prev;
               });
             }
           } catch (error) {
-            console.error('Error fetching new user data:', error);
+            console.error('❌ Error fetching new user data:', error);
           }
+        } else {
+          console.log('❌ Message not relevant for current user');
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('🔔 Subscription status:', status);
+      });
 
     return () => {
+      console.log('🧹 Cleaning up real-time subscriptions');
       supabase.removeChannel(sub);
+      supabase.removeChannel(testSub);
+      supabase.removeChannel(connectionTest);
     };
   }, [currentUser.id]);
 
@@ -493,6 +547,48 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
+        {/* Test button for real-time */}
+        <button
+          onClick={async () => {
+            console.log('🧪 Testing real-time by inserting a test message...');
+            console.log('👤 Current user ID:', currentUser.id);
+            
+            // First check if user exists in users table
+            const { data: userCheck, error: userCheckError } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', currentUser.id)
+              .single();
+            
+            console.log('🔍 User check result:', { userCheck, userCheckError });
+            
+            if (userCheckError) {
+              console.error('❌ User not found in users table! This is the problem.');
+              return;
+            }
+            
+            // Try to insert a test message
+            const { data, error } = await supabase
+              .from('messages')
+              .insert({
+                sender_id: currentUser.id,
+                receiver_id: currentUser.id, // Send to self for testing
+                content: 'Test message ' + new Date().toISOString()
+              })
+              .select();
+            
+            console.log('🧪 Test message result:', { data, error });
+            
+            if (error) {
+              console.error('❌ Failed to insert test message:', error);
+            } else {
+              console.log('✅ Test message inserted successfully');
+            }
+          }}
+          className="mt-2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+        >
+          Test Real-time
+        </button>
       </div>
 
       {/* Tab Navigation */}
@@ -706,6 +802,8 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
       }, (payload: { new: any }) => {
         if (mounted) {
           const newMessage = payload.new;
+          console.log('📨 New message received in ChatBox:', newMessage);
+          console.log('💬 Current messages count:', messages.length);
           
           // Check if this message belongs to the current chat
           const isRelevant = selectedChat.type === 'user' 
@@ -713,19 +811,29 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
               (newMessage.sender_id === selectedChat.id && newMessage.receiver_id === currentUser.id)
             : newMessage.group_id === selectedChat.id;
           
+          console.log('🎯 Is message relevant for current chat?', isRelevant);
+          console.log('👤 Current user ID:', currentUser.id);
+          console.log('💬 Selected chat ID:', selectedChat.id);
+          
           if (isRelevant) {
             setMessages(msgs => {
               // Check if message already exists to avoid duplicates
               const exists = msgs.find(msg => msg.id === newMessage.id);
               if (exists) {
+                console.log('⚠️ Message already exists, skipping');
                 return msgs;
               }
+              console.log('➕ Adding new message to chat');
               return [...msgs, newMessage];
             });
+          } else {
+            console.log('❌ Message not relevant for current chat');
           }
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('🔔 ChatBox subscription status:', status);
+      });
 
     return () => {
       mounted = false;
