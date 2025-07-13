@@ -399,12 +399,25 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
 
     fetchMessages();
 
-    // Subscribe to new messages
+    // Subscribe to new messages with improved filtering
     const sub = supabase
-      .channel('realtime:messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload: { new: any }) => {
+      .channel(`realtime:messages:${selectedChat.id}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'messages',
+        filter: selectedChat.type === 'user' 
+          ? `or(and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedChat.id}),and(sender_id.eq.${selectedChat.id},receiver_id.eq.${currentUser.id}))`
+          : `group_id.eq.${selectedChat.id}`
+      }, (payload: { new: any }) => {
         if (mounted) {
-          setMessages(msgs => [...msgs, payload.new]);
+          console.log('New message received:', payload.new);
+          setMessages(msgs => {
+            // Check if message already exists to avoid duplicates
+            const exists = msgs.find(msg => msg.id === payload.new.id);
+            if (exists) return msgs;
+            return [...msgs, payload.new];
+          });
         }
       })
       .subscribe();
@@ -662,10 +675,88 @@ interface ChatProps {
 // ChatSidebar: shows users and groups, allows selection
 const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, currentUser }) => {
   const [users, setUsers] = useState<UserItem[]>([]);
+  const [recentChats, setRecentChats] = useState<UserItem[]>([]);
   const [groups, setGroups] = useState<GroupItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState<'users' | 'groups'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'groups' | 'recent'>('recent');
   const [loading, setLoading] = useState(false);
+
+  // Fetch users who have messaged the current user (recent chats)
+  useEffect(() => {
+    const fetchRecentChats = async () => {
+      try {
+        // Get users who have sent messages to current user
+        const { data: messagesData, error: messagesError } = await supabase
+          .from('messages')
+          .select('sender_id, users!inner(id, first_name, last_name)')
+          .eq('receiver_id', currentUser.id)
+          .neq('sender_id', currentUser.id);
+
+        if (!messagesError && messagesData) {
+          // Extract unique users from messages
+          const uniqueUsers = messagesData.reduce((acc: UserItem[], msg: any) => {
+            const user = msg.users;
+            if (!acc.find(u => u.id === user.id)) {
+              acc.push({
+                id: user.id,
+                first_name: user.first_name,
+                last_name: user.last_name
+              });
+            }
+            return acc;
+          }, []);
+          setRecentChats(uniqueUsers);
+        }
+      } catch (error) {
+        console.error('Error fetching recent chats:', error);
+      }
+    };
+
+    fetchRecentChats();
+  }, [currentUser.id]);
+
+  // Subscribe to new messages to update recent chats
+  useEffect(() => {
+    const sub = supabase
+      .channel('realtime:recent-chats')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload: { new: any }) => {
+        const newMessage = payload.new;
+        
+        // If someone sent a message to current user, add them to recent chats
+        if (newMessage.receiver_id === currentUser.id && newMessage.sender_id !== currentUser.id) {
+          try {
+            const { data: userData } = await supabase
+              .from('users')
+              .select('id, first_name, last_name')
+              .eq('id', newMessage.sender_id)
+              .single();
+
+            if (userData) {
+              setRecentChats(prev => {
+                const user = {
+                  id: userData.id,
+                  first_name: userData.first_name,
+                  last_name: userData.last_name
+                };
+                
+                // Add user if not already in recent chats
+                if (!prev.find(u => u.id === user.id)) {
+                  return [user, ...prev];
+                }
+                return prev;
+              });
+            }
+          } catch (error) {
+            console.error('Error fetching new user data:', error);
+          }
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(sub);
+    };
+  }, [currentUser.id]);
 
   useEffect(() => {
     if (!searchTerm) {
@@ -740,6 +831,16 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
       {/* Tab Navigation */}
       <div className="flex border-b border-green-500/20">
         <button
+          onClick={() => setActiveTab('recent')}
+          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+            activeTab === 'recent' 
+              ? 'text-green-400 border-b-2 border-green-400 bg-green-400/10' 
+              : 'text-green-400/60 hover:text-green-400'
+          }`}
+        >
+          Recent ({recentChats.length})
+        </button>
+        <button
           onClick={() => setActiveTab('users')}
           className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
             activeTab === 'users' 
@@ -763,7 +864,44 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        {activeTab === 'users' ? (
+        {activeTab === 'recent' ? (
+          <div className="p-4">
+            {recentChats.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                </div>
+                <p className="text-green-400/60 text-sm">No recent chats</p>
+                <p className="text-green-400/40 text-xs mt-2">Users will appear here when they message you</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {recentChats.map(user => (
+                  <button
+                    key={user.id}
+                    onClick={() => onSelect({ type: 'user', id: user.id, name: `${user.first_name} ${user.last_name}` })}
+                    className={`w-full flex items-center p-3 rounded-lg transition-all duration-200 hover:bg-green-500/10 ${
+                      selectedChat?.type === 'user' && selectedChat.id === user.id 
+                        ? 'bg-green-500/20 border border-green-500/30' 
+                        : 'hover:border-green-500/20 border border-transparent'
+                    }`}
+                  >
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm mr-3 ${getRandomColor(user.id)}`}>
+                      {getInitials(user.first_name, user.last_name)}
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="text-white font-medium text-sm">{user.first_name} {user.last_name}</p>
+                      <p className="text-green-400/60 text-xs">Recent chat</p>
+                    </div>
+                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : activeTab === 'users' ? (
           <div className="p-4">
             {loading ? (
               <div className="text-center py-8 text-green-400">Loading...</div>
