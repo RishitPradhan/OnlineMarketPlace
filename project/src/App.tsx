@@ -21,6 +21,21 @@ import ServicesPage from './components/pages/ServicesPage';
 import PortfolioPage from './components/pages/PortfolioPage';
 import SkillsPage from './components/pages/SkillsPage';
 import { TestAuth } from './components/auth/TestAuth';
+import {
+  MyGigsPage,
+  MyOrdersPage,
+  ActiveOrdersPage,
+  AnalyticsPage,
+  ReviewsPage,
+  EarningsPage,
+  PaymentsPage,
+  UsersPage,
+  GigsPage,
+  SettingsPage,
+  MessagesPage,
+  NotificationsPage
+} from './components/pages';
+import MainLayout from './components/layout/MainLayout';
 
 // Component to redirect authenticated users away from auth pages
 const AuthRedirect: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -54,54 +69,33 @@ function App() {
                 <RegisterForm />
               </AuthRedirect>
             } />
-        <Route path="/dashboard" element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        } />
+        {/* MainLayout-wrapped routes */}
+        <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/messages" element={<MessagesPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/my-gigs" element={<MyGigsPage />} />
+          <Route path="/my-orders" element={<MyOrdersPage />} />
+          <Route path="/active-orders" element={<ActiveOrdersPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/reviews" element={<ReviewsPage />} />
+          <Route path="/earnings" element={<EarningsPage />} />
+          <Route path="/payments" element={<PaymentsPage />} />
+          <Route path="/users" element={<UsersPage />} />
+          <Route path="/gigs" element={<GigsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/services" element={<ServicesPage />} />
+          <Route path="/portfolio" element={<PortfolioPage />} />
+          <Route path="/skills" element={<SkillsPage />} />
+          <Route path="/onboarding" element={<OnboardingHubPage />} />
+          <Route path="/getting-started" element={<GettingStartedPage />} />
+          <Route path="/profile-completion" element={<ProfileCompletionPage />} />
+          <Route path="/quick-start" element={<QuickStartPage />} />
+        </Route>
         <Route path="/freelancer/:id" element={<FreelancerProfile />} />
         <Route path="/service/:id" element={<ServiceFreelancers />} />
         <Route path="/featured-project" element={<FeaturedProject />} />
-        <Route path="/onboarding" element={
-          <ProtectedRoute>
-            <OnboardingHubPage />
-          </ProtectedRoute>
-        } />
-        <Route path="/getting-started" element={
-          <ProtectedRoute>
-            <GettingStartedPage />
-          </ProtectedRoute>
-        } />
-        <Route path="/profile-completion" element={
-          <ProtectedRoute>
-            <ProfileCompletionPage />
-          </ProtectedRoute>
-        } />
-        <Route path="/quick-start" element={
-          <ProtectedRoute>
-            <QuickStartPage />
-          </ProtectedRoute>
-        } />
-        <Route path="/profile" element={
-          <ProtectedRoute>
-            <ProfilePage />
-          </ProtectedRoute>
-        } />
-        <Route path="/services" element={
-          <ProtectedRoute>
-            <ServicesPage />
-          </ProtectedRoute>
-        } />
-        <Route path="/portfolio" element={
-          <ProtectedRoute>
-            <PortfolioPage />
-          </ProtectedRoute>
-        } />
-        <Route path="/skills" element={
-          <ProtectedRoute>
-            <SkillsPage />
-          </ProtectedRoute>
-        } />
         <Route path="/test-auth" element={<TestAuth />} />
       </Routes>
     </Router>

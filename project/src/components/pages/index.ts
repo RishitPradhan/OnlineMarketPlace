@@ -1,4 +1,16 @@
 export { default as ProfilePage } from './ProfilePage';
 export { default as ServicesPage } from './ServicesPage';
 export { default as PortfolioPage } from './PortfolioPage';
-export { default as SkillsPage } from './SkillsPage'; 
+export { default as SkillsPage } from './SkillsPage';
+export { default as MyGigsPage } from './MyGigsPage';
+export { default as MyOrdersPage } from './MyOrdersPage';
+export { default as ActiveOrdersPage } from './ActiveOrdersPage';
+export { default as AnalyticsPage } from './AnalyticsPage';
+export { default as ReviewsPage } from './ReviewsPage';
+export { default as EarningsPage } from './EarningsPage';
+export { default as PaymentsPage } from './PaymentsPage';
+export { default as UsersPage } from './UsersPage';
+export { default as GigsPage } from './GigsPage';
+export { default as SettingsPage } from './SettingsPage';
+export { default as MessagesPage } from './MessagesPage';
+export { default as NotificationsPage } from './NotificationsPage'; 

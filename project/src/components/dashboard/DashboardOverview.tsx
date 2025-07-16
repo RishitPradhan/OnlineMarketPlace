@@ -467,7 +467,7 @@ export const DashboardOverview: React.FC = () => {
               📊 View Analytics
             </button>
             <button 
-              onClick={() => switchToTab('messages')}
+              onClick={() => navigate('/messages')}
               className="w-full p-3 text-left bg-dark-800 hover:bg-dark-700 dark:bg-dark-800 dark:hover:bg-dark-700 text-white dark:text-white text-green-800 border border-green-200 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-md"
             >
               💬 Check Messages

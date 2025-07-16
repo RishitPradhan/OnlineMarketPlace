@@ -893,10 +893,15 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
                 className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
               >
                 <div className={`flex ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'} items-end max-w-xs lg:max-w-md`}>
-                  {!isOwnMessage && showAvatar && (
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-xs mr-2 mb-1 ${getRandomColor(msg.sender_id)}`}>
-                      {getInitials(msg.sender_id)}
-                    </div>
+                  {!isOwnMessage && (
+                    showAvatar ? (
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-xs mr-2 mb-1 ${getRandomColor(msg.sender_id)}`}>
+                        {getInitials(msg.sender_id)}
+                      </div>
+                    ) : (
+                      // Placeholder to reserve space for avatar
+                      <div className="w-8 h-8 mr-2 mb-1" />
+                    )
                   )}
                   <div className={`px-4 py-2 rounded-2xl shadow-sm ${
                     isOwnMessage 
@@ -952,21 +957,14 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
   );
 }
 
+export { ChatSidebar };
+export { ChatBox };
+
 export const Dashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const navigate = useNavigate();
   const { user } = useAuth();
   const [selectedChat, setSelectedChat] = useState<ChatTarget | null>(null);
-
-  // Handle URL parameters for tab switching
-  React.useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const tabParam = urlParams.get('tab');
-    if (tabParam) {
-      setActiveTab(tabParam);
-    }
-  }, []);
 
   // If user is not loaded, show a message and a Sign In button
   if (!user) {
@@ -983,225 +981,7 @@ export const Dashboard: React.FC = () => {
     );
   }
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard':
-        return <DashboardOverview />;
-      case 'browse':
-        return (
-          <div className="p-8 bg-gradient-to-br from-dark-950 to-dark-900 dark:from-dark-950 dark:to-dark-900 from-white to-white min-h-full">
-            <div className="glass-effect rounded-xl p-12">
-              <h2 className="text-4xl font-bold text-white dark:text-white text-green-700 mb-12 text-center">Services</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                {featuredWorks.map((work, index) => (
-                  <div
-                    key={index}
-                    className="group transition-all duration-700 hover:scale-105 hover:shadow-2xl bg-white dark:bg-dark-800 rounded-2xl overflow-hidden cursor-pointer"
-                    onClick={() => {
-                      navigate(`/service/${index + 1}`, { state: { service: work } });
-                    }}
-                  >
-                    <div className="relative overflow-hidden rounded-t-2xl mb-4">
-                      <img
-                        src={work.image}
-                        alt={work.title}
-                        className="w-full h-48 object-cover transform group-hover:scale-110 transition-transform duration-700"
-                      />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-500"></div>
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                    </div>
-                    <div className="p-6">
-                      <h3 className="text-xl font-bold group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors duration-300 text-center">{work.title}</h3>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-      case 'my-gigs':
-        return (
-          <div className="p-8 bg-gradient-to-br from-dark-950 to-dark-900 dark:from-dark-950 dark:to-dark-900 from-white to-white min-h-full">
-            <div className="glass-effect rounded-xl p-12 text-center">
-              <h2 className="text-4xl font-bold text-white dark:text-white text-green-700 mb-8">My Elite Gigs</h2>
-              <p className="text-dark-300 dark:text-dark-300 text-green-600 text-xl">Gig management system coming soon...</p>
-            </div>
-          </div>
-        );
-      case 'my-orders':
-        return (
-          <div className="p-8 bg-gradient-to-br from-dark-950 to-dark-900 dark:from-dark-950 dark:to-dark-900 from-white to-white min-h-full">
-            <div className="glass-effect rounded-xl p-12">
-              <h2 className="text-4xl font-bold text-white dark:text-white text-green-700 mb-12 text-center">My Orders</h2>
-              <OrderTrackingTable />
-            </div>
-          </div>
-        );
-      case 'orders':
-        return (
-          <div className="p-8 bg-gradient-to-br from-dark-950 to-dark-900 dark:from-dark-950 dark:to-dark-900 from-white to-white min-h-full">
-            <div className="glass-effect rounded-xl p-12 text-center">
-              <h2 className="text-4xl font-bold text-white dark:text-white text-green-700 mb-8">Active Orders</h2>
-              <p className="text-dark-300 dark:text-dark-300 text-green-600 text-xl">Order management coming soon...</p>
-            </div>
-          </div>
-        );
-      case 'messages':
-        // Use the real messaging UI, not MockMessaging
-        // Map user to UserItem shape for ChatSidebar/ChatBox
-        const userItem = user ? {
-          id: user.id,
-          first_name: user.firstName,
-          last_name: user.lastName
-        } : undefined;
-        return (
-          <div className="h-full bg-gradient-to-br from-dark-950 to-dark-900 dark:from-dark-950 dark:to-dark-900 from-white to-white">
-            <div className="h-full flex">
-              {/* Sidebar */}
-              <div className="w-80 bg-dark-900/50 border-r border-green-500/20 flex flex-col">
-                <div className="p-6 border-b border-green-500/20">
-                  <h2 className="text-2xl font-bold text-white mb-2">Messages</h2>
-                  <p className="text-green-400 text-sm">Connect with your network</p>
-                </div>
-                <div className="flex-1 overflow-y-auto">
-                  {userItem && (
-                    <ChatSidebar 
-                      onSelect={setSelectedChat} 
-                      selectedChat={selectedChat} 
-                      currentUser={userItem} 
-                    />
-                  )}
-                </div>
-              </div>
-              {/* Main Chat Area */}
-              <div className="flex-1 flex flex-col">
-                {userItem && <ChatBox selectedChat={selectedChat} currentUser={userItem} />}
-              </div>
-            </div>
-          </div>
-        );
-      case 'analytics':
-        return (
-          <div className="p-8 bg-gradient-to-br from-dark-950 to-dark-900 dark:from-dark-950 dark:to-dark-900 from-white to-white min-h-full">
-            <div className="glass-effect rounded-xl p-12 text-center">
-              <h2 className="text-4xl font-bold text-white dark:text-white text-green-700 mb-8">Analytics</h2>
-              <p className="text-dark-300 dark:text-dark-300 text-green-600 text-xl">Advanced analytics coming soon...</p>
-            </div>
-          </div>
-        );
-      case 'reviews':
-        return (
-          <div className="p-8 bg-gradient-to-br from-dark-950 to-dark-900 dark:from-dark-950 dark:to-dark-900 from-white to-white min-h-full">
-            <div className="glass-effect rounded-xl p-12 text-center">
-              <h2 className="text-4xl font-bold text-white dark:text-white text-green-700 mb-8">Reviews</h2>
-              <p className="text-dark-300 dark:text-dark-300 text-green-600 text-xl">Review system coming soon...</p>
-            </div>
-          </div>
-        );
-      case 'earnings':
-        return (
-          <div className="p-8 bg-gradient-to-br from-dark-950 to-dark-900 dark:from-dark-950 dark:to-dark-900 from-white to-white min-h-full">
-            <div className="glass-effect rounded-xl p-12 text-center">
-              <h2 className="text-4xl font-bold text-white dark:text-white text-green-700 mb-8">Earnings</h2>
-              <p className="text-dark-300 dark:text-dark-300 text-green-600 text-xl">Earnings dashboard coming soon...</p>
-            </div>
-          </div>
-        );
-      case 'payments':
-        return (
-          <div className="p-8 bg-gradient-to-br from-dark-950 to-dark-900 dark:from-dark-950 dark:to-dark-900 from-white to-white min-h-full">
-            <div className="glass-effect rounded-xl p-12 text-center">
-              <h2 className="text-4xl font-bold text-white dark:text-white text-green-700 mb-8">Payments</h2>
-              <p className="text-dark-300 dark:text-dark-300 text-green-600 text-xl">Payment system coming soon...</p>
-            </div>
-          </div>
-        );
-      case 'users':
-        return (
-          <div className="p-8 bg-gradient-to-br from-dark-950 to-dark-900 dark:from-dark-950 dark:to-dark-900 from-white to-white min-h-full">
-            <div className="glass-effect rounded-xl p-12 text-center">
-              <h2 className="text-4xl font-bold text-white dark:text-white text-green-700 mb-8">User Management</h2>
-              <p className="text-dark-300 dark:text-dark-300 text-green-600 text-xl">User administration coming soon...</p>
-            </div>
-          </div>
-        );
-      case 'gigs':
-        return (
-          <div className="p-8 bg-gradient-to-br from-dark-950 to-dark-900 dark:from-dark-950 dark:to-dark-900 from-white to-white min-h-full">
-            <div className="glass-effect rounded-xl p-12 text-center">
-              <h2 className="text-4xl font-bold text-white dark:text-white text-green-700 mb-8">Gig Management</h2>
-              <p className="text-dark-300 dark:text-dark-300 text-green-600 text-xl">Gig administration coming soon...</p>
-            </div>
-          </div>
-        );
-      case 'profile':
-        return (
-          <div className="p-8 bg-gradient-to-br from-dark-950 to-dark-900 dark:from-dark-950 dark:to-dark-900 from-white to-white min-h-full">
-            <div className="glass-effect rounded-xl p-12 text-center">
-              <h2 className="text-4xl font-bold text-white dark:text-white text-green-700 mb-8">Profile</h2>
-              <p className="text-dark-300 dark:text-dark-300 text-green-600 text-xl">Profile management coming soon...</p>
-            </div>
-          </div>
-        );
-      case 'onboarding':
-        return (
-          <div className="p-8 bg-gradient-to-br from-dark-950 to-dark-900 dark:from-dark-950 dark:to-dark-900 from-white to-white min-h-full">
-            <div className="glass-effect rounded-xl p-12 text-center">
-              <h2 className="text-4xl font-bold text-white dark:text-white text-green-700 mb-8">Onboarding Hub</h2>
-              <p className="text-dark-300 dark:text-dark-300 text-green-600 text-xl mb-8">
-                Welcome to your onboarding journey! Complete these steps to set up your freelancing business.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto">
-                <button 
-                  onClick={() => navigate('/getting-started')}
-                  className="p-6 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all duration-300 hover:scale-105"
-                >
-                  <div className="text-3xl mb-2">🚀</div>
-                  <h3 className="text-xl font-semibold mb-2">Getting Started Guide</h3>
-                  <p className="text-sm opacity-90">Step-by-step setup guide</p>
-                </button>
-                <button 
-                  onClick={() => navigate('/profile-completion')}
-                  className="p-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all duration-300 hover:scale-105"
-                >
-                  <div className="text-3xl mb-2">📋</div>
-                  <h3 className="text-xl font-semibold mb-2">Profile Completion</h3>
-                  <p className="text-sm opacity-90">Complete your profile</p>
-                </button>
-                <button 
-                  onClick={() => navigate('/quick-start')}
-                  className="p-6 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-all duration-300 hover:scale-105"
-                >
-                  <div className="text-3xl mb-2">⚡</div>
-                  <h3 className="text-xl font-semibold mb-2">Quick Start Actions</h3>
-                  <p className="text-sm opacity-90">Priority tasks to complete</p>
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      case 'settings':
-        return <Settings />;
-      default:
-        return <DashboardOverview />;
-    }
-  };
-
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-dark-950 to-dark-900 dark:from-dark-950 dark:to-dark-900 from-white to-white">
-      <Navbar user={user} />
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar 
-          activeTab={activeTab} 
-          onTabChange={setActiveTab} 
-          user={user} 
-          isCollapsed={isSidebarCollapsed}
-          onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        />
-        <main className="flex-1 overflow-y-auto">
-          {renderContent()}
-        </main>
-      </div>
-    </div>
+    <DashboardOverview />
   );
 };
