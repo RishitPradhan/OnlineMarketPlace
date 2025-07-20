@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+const LOCAL_KEY = 'portfolioProjects';
+
 const PortfolioPage: React.FC = () => {
+  console.log('PortfolioPage MOUNT');
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('view');
-
   const [newProject, setNewProject] = useState({
     title: '',
     category: '',
@@ -13,8 +15,17 @@ const PortfolioPage: React.FC = () => {
     projectUrl: '',
     technologies: ''
   });
+  const [editIndex, setEditIndex] = useState<number | null>(null);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [projects, setProjects] = useState<any[]>(() => {
+    const data = localStorage.getItem('portfolioProjects');
+    const parsed = data ? JSON.parse(data) : [];
+    console.log('PortfolioPage initial load from localStorage:', parsed);
+    return parsed;
+  });
 
-  const existingProjects: any[] = [];
+  // Debug: log projects array every render
+  console.log('PortfolioPage render projects:', projects);
 
   const categories = [
     'Web Development',
@@ -29,22 +40,70 @@ const PortfolioPage: React.FC = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setNewProject(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setNewProject(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
+    console.log('Portfolio Submit');
     e.preventDefault();
-    console.log('Adding new project:', newProject);
-    // Here you would typically save to your backend
+    if (editIndex !== null) {
+      const updated = [...projects];
+      updated[editIndex] = { ...newProject, technologies: newProject.technologies.split(',').map(t => t.trim()) };
+      setProjects(updated);
+      localStorage.setItem('portfolioProjects', JSON.stringify(updated));
+      setEditIndex(null);
+      setSuccessMsg('Project updated!');
+    } else {
+      const updated = [
+        ...projects,
+        { ...newProject, id: Date.now(), technologies: newProject.technologies.split(',').map(t => t.trim()) }
+      ];
+      console.log('Updated projects:', updated);
+      setProjects(updated);
+      localStorage.setItem('portfolioProjects', JSON.stringify(updated));
+      setSuccessMsg('Project added!');
+    }
+    setNewProject({ title: '', category: '', description: '', imageUrl: '', projectUrl: '', technologies: '' });
     setActiveTab('view');
+    setTimeout(() => setSuccessMsg(''), 1500);
+  };
+
+  const handleEdit = (idx: number) => {
+    setEditIndex(idx);
+    const proj = projects[idx];
+    setNewProject({
+      title: proj.title,
+      category: proj.category,
+      description: proj.description,
+      imageUrl: proj.imageUrl,
+      projectUrl: proj.projectUrl,
+      technologies: Array.isArray(proj.technologies) ? proj.technologies.join(', ') : proj.technologies || ''
+    });
+    setActiveTab('add');
+  };
+
+  const handleDelete = (idx: number) => {
+    const updated = projects.filter((_: any, i: number) => i !== idx);
+    setProjects(updated);
+    localStorage.setItem('portfolioProjects', JSON.stringify(updated));
+    setSuccessMsg('Project deleted!');
+    setTimeout(() => setSuccessMsg(''), 1500);
+  };
+
+  const handleReset = () => {
+    setNewProject({ title: '', category: '', description: '', imageUrl: '', projectUrl: '', technologies: '' });
+    setEditIndex(null);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-950 to-dark-900">
       <div className="w-full px-6 py-8">
+        <button
+          onClick={() => navigate('/profile-completion')}
+          className="mb-6 px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold shadow transition-all"
+        >
+          Profile
+        </button>
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-white mb-4">
@@ -194,43 +253,7 @@ const PortfolioPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {existingProjects.map((project) => (
-                <div key={project.id} className="bg-dark-800 rounded-lg overflow-hidden hover:scale-[1.02] transition-all duration-300">
-                  <div className="relative">
-                    <img
-                      src={project.imageUrl}
-                      alt={project.title}
-                      className="w-full h-48 object-cover"
-                    />
-                    {project.featured && (
-                      <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                        Featured
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-6">
-                    <h3 className="text-xl font-semibold text-white mb-2">{project.title}</h3>
-                    <p className="text-gray-300 mb-3">{project.description}</p>
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {project.technologies.map((tech, index) => (
-                        <span key={index} className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">
-                          {tech}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-400">{project.category}</span>
-                      <button className="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors duration-200 text-sm">
-                        Edit
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {existingProjects.length === 0 ? (
+            {projects.length === 0 ? (
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">🎨</div>
                 <h3 className="text-xl font-semibold text-white mb-2">No Projects Yet</h3>
@@ -243,41 +266,55 @@ const PortfolioPage: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-                {existingProjects.map((project) => (
-                  <div key={project.id} className="bg-dark-800 rounded-lg overflow-hidden hover:scale-[1.02] transition-all duration-300">
-                    <div className="relative">
-                      <img
-                        src={project.imageUrl}
-                        alt={project.title}
-                        className="w-full h-48 object-cover"
-                      />
-                      {project.featured && (
-                        <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                          Featured
+              <>
+                {console.log('Rendering projects:', projects)}
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                  {projects.map((project: any, index: number) => (
+                    <div key={project.id} className="bg-dark-800 rounded-lg overflow-hidden hover:scale-[1.02] transition-all duration-300">
+                      <div className="relative">
+                        <img
+                          src={project.imageUrl}
+                          alt={project.title}
+                          className="w-full h-48 object-cover"
+                        />
+                        {project.featured && (
+                          <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                            Featured
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-6">
+                        <h3 className="text-xl font-semibold text-white mb-2">{project.title}</h3>
+                        <p className="text-gray-300 mb-3">{project.description}</p>
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {project.technologies.map((tech: string, i: number) => (
+                            <span key={i} className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">
+                              {tech}
+                            </span>
+                          ))}
                         </div>
-                      )}
-                    </div>
-                    <div className="p-6">
-                      <h3 className="text-xl font-semibold text-white mb-2">{project.title}</h3>
-                      <p className="text-gray-300 mb-3">{project.description}</p>
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        {project.technologies.map((tech: string, index: number) => (
-                          <span key={index} className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">
-                            {tech}
-                          </span>
-                        ))}
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-400">{project.category}</span>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleEdit(index)}
+                              className="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors duration-200 text-sm"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(index)}
+                              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200 text-sm"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-400">{project.category}</span>
-                        <button className="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors duration-200 text-sm">
-                          Edit
-                        </button>
-                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         )}
@@ -297,6 +334,11 @@ const PortfolioPage: React.FC = () => {
             Profile Completion
           </button>
         </div>
+        {successMsg && (
+          <div className="text-center py-4 text-green-400 text-lg">
+            {successMsg}
+          </div>
+        )}
       </div>
     </div>
   );

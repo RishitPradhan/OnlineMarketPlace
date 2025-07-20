@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+const LOCAL_KEY = 'skillsData';
+
 const SkillsPage: React.FC = () => {
   const navigate = useNavigate();
   const [newSkill, setNewSkill] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-
-  const [skills, setSkills] = useState<any[]>([]);
+  const [successMsg, setSuccessMsg] = useState('');
+  // Remove all useState/useEffect for skills
+  // Use this to display skills:
+  const skills = JSON.parse(localStorage.getItem('skillsData') || '[]');
 
   const categories = [
     'Programming',
@@ -22,6 +26,15 @@ const SkillsPage: React.FC = () => {
 
   const levels = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
 
+  const saveSkills = (skillsArr: any[]) => {
+    localStorage.setItem('skillsData', JSON.stringify(skillsArr));
+    window.dispatchEvent(new StorageEvent('storage', { key: 'skillsData', newValue: JSON.stringify(skillsArr) }));
+    window.dispatchEvent(new Event('skills-updated'));
+    window.dispatchEvent(new Event('profile-updated'));
+    const profileData = localStorage.getItem('profileData');
+    window.dispatchEvent(new StorageEvent('storage', { key: 'profileData', newValue: profileData }));
+  };
+
   const handleAddSkill = () => {
     if (newSkill.trim() && selectedCategory) {
       const skill = {
@@ -30,33 +43,60 @@ const SkillsPage: React.FC = () => {
         category: selectedCategory,
         level: 'Intermediate'
       };
-      setSkills([...skills, skill]);
+      const updated = [...skills, skill];
+      saveSkills(updated);
       setNewSkill('');
       setSelectedCategory('');
+      setSuccessMsg('Skill added!');
+      setTimeout(() => setSuccessMsg(''), 1500);
     }
   };
 
   const handleRemoveSkill = (skillId: number) => {
-    setSkills(skills.filter(skill => skill.id !== skillId));
+    const updated = skills.filter((skill: any) => skill.id !== skillId);
+    saveSkills(updated);
+    setSuccessMsg('Skill removed!');
+    setTimeout(() => setSuccessMsg(''), 1500);
   };
 
   const handleLevelChange = (skillId: number, newLevel: string) => {
-    setSkills(skills.map(skill => 
+    const updated = skills.map((skill: any) =>
       skill.id === skillId ? { ...skill, level: newLevel } : skill
-    ));
+    );
+    saveSkills(updated);
+    setSuccessMsg('Skill level updated!');
+    setTimeout(() => setSuccessMsg(''), 1500);
   };
 
-  const groupedSkills = skills.reduce((acc, skill) => {
+  const handleSaveSkills = () => {
+    saveSkills(skills);
+    setSuccessMsg('Skills saved!');
+    setTimeout(() => setSuccessMsg(''), 1500);
+  };
+
+  const handleReset = () => {
+    localStorage.setItem('skillsData', JSON.stringify([]));
+    setSuccessMsg('Skills reset!');
+    setTimeout(() => setSuccessMsg(''), 1500);
+  };
+
+  const groupedSkills = skills.reduce((acc: any, skill: any) => {
     if (!acc[skill.category]) {
       acc[skill.category] = [];
     }
     acc[skill.category].push(skill);
     return acc;
-  }, {} as Record<string, any[]>);
+  }, {});
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-950 to-dark-900">
       <div className="w-full px-6 py-8">
+        <button
+          onClick={() => navigate('/profile-completion')}
+          className="mb-6 px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold shadow transition-all"
+        >
+          Profile
+        </button>
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-white mb-4">
@@ -95,7 +135,21 @@ const SkillsPage: React.FC = () => {
             >
               Add Skill
             </button>
+            <button
+              onClick={handleReset}
+              className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200"
+            >
+              Reset Skills
+            </button>
+            <button
+              onClick={handleSaveSkills}
+              disabled={false} // No longer hasChanges
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-dark-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors duration-200"
+            >
+              Save Skills
+            </button>
           </div>
+          {successMsg && <div className="mt-4 text-green-400 text-center font-semibold">{successMsg}</div>}
         </div>
 
         {/* Skills Overview */}
@@ -107,33 +161,33 @@ const SkillsPage: React.FC = () => {
           
           {Object.keys(groupedSkills).length > 0 ? (
             <div className="space-y-6">
-                             {Object.entries(groupedSkills).map(([category, categorySkills]: [string, any[]]) => (
+              {Object.entries(groupedSkills).map(([category, categorySkills]) => (
                 <div key={category}>
                   <h3 className="text-lg font-medium text-white mb-3">{category}</h3>
-                                     <div className="grid gap-3">
-                     {categorySkills.map((skill: any) => (
-                       <div key={skill.id} className="flex items-center justify-between p-4 bg-dark-700 rounded-lg">
-                         <div className="flex items-center space-x-3">
-                           <span className="text-white font-medium">{skill.name}</span>
-                           <select
-                             value={skill.level}
-                             onChange={(e) => handleLevelChange(skill.id, e.target.value)}
-                             className="px-3 py-1 bg-dark-600 border border-dark-500 rounded text-white text-sm focus:border-green-500 focus:outline-none"
-                           >
-                             {levels.map((level) => (
-                               <option key={level} value={level}>{level}</option>
-                             ))}
-                           </select>
-                         </div>
-                         <button
-                           onClick={() => handleRemoveSkill(skill.id)}
-                           className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm transition-colors duration-200"
-                         >
-                           Remove
-                         </button>
-                       </div>
-                     ))}
-                   </div>
+                  <div className="grid gap-3">
+                    {(categorySkills as any[]).map((skill: any) => (
+                      <div key={skill.id} className="flex items-center justify-between p-4 bg-dark-700 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <span className="text-white font-medium">{skill.name}</span>
+                          <select
+                            value={skill.level}
+                            onChange={(e) => handleLevelChange(skill.id, e.target.value)}
+                            className="px-3 py-1 bg-dark-600 border border-dark-500 rounded text-white text-sm focus:border-green-500 focus:outline-none"
+                          >
+                            {levels.map((level) => (
+                              <option key={level} value={level}>{level}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveSkill(skill.id)}
+                          className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm transition-colors duration-200"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>

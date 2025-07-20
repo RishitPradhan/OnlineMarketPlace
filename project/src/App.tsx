@@ -12,10 +12,6 @@ import { LoginForm } from './components/auth/LoginForm';
 import { RegisterForm } from './components/auth/RegisterForm';
 import { useAuth } from './contexts/AuthContext';
 import { LoadingScreen } from './components/ui/LoadingScreen';
-import GettingStartedPage from './components/onboarding/GettingStartedPage';
-import ProfileCompletionPage from './components/onboarding/ProfileCompletionPage';
-import QuickStartPage from './components/onboarding/QuickStartPage';
-import OnboardingHubPage from './components/onboarding/OnboardingHubPage';
 import ProfilePage from './components/pages/ProfilePage';
 import ServicesPage from './components/pages/ServicesPage';
 import PortfolioPage from './components/pages/PortfolioPage';
@@ -36,6 +32,8 @@ import {
   NotificationsPage
 } from './components/pages';
 import MainLayout from './components/layout/MainLayout';
+import BrowseServicesPage from './components/pages/BrowseServicesPage';
+import ProfileCompletionPage from './components/onboarding/ProfileCompletionPage';
 
 // Component to redirect authenticated users away from auth pages
 const AuthRedirect: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -85,16 +83,14 @@ function App() {
           <Route path="/gigs" element={<GigsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/profile-completion" element={<ProfileCompletionPage />} />
           <Route path="/services" element={<ServicesPage />} />
           <Route path="/portfolio" element={<PortfolioPage />} />
           <Route path="/skills" element={<SkillsPage />} />
-          <Route path="/onboarding" element={<OnboardingHubPage />} />
-          <Route path="/getting-started" element={<GettingStartedPage />} />
-          <Route path="/profile-completion" element={<ProfileCompletionPage />} />
-          <Route path="/quick-start" element={<QuickStartPage />} />
+          <Route path="/service" element={<ServiceFreelancers />} />
+          <Route path="/browse-services" element={<BrowseServicesPage />} />
         </Route>
         <Route path="/freelancer/:id" element={<FreelancerProfile />} />
-        <Route path="/service/:id" element={<ServiceFreelancers />} />
         <Route path="/featured-project" element={<FeaturedProject />} />
         <Route path="/test-auth" element={<TestAuth />} />
       </Routes>

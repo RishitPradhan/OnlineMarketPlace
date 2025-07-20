@@ -145,7 +145,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user }) => {
             
             <button
               className="flex items-center space-x-3 group focus:outline-none"
-              onClick={() => navigate('/profile')}
+              onClick={() => navigate('/profile-completion')}
               aria-label="Go to Profile"
             >
               <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-neon-green-glow group-hover:scale-105 transition-transform">

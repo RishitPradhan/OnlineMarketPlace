@@ -35,9 +35,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggle })
   const location = useLocation();
   const allTabs = [
     { id: 'dashboard', label: 'Dashboard', icon: Home, route: '/dashboard' },
-    { id: 'browse', label: 'Services', icon: Layers, route: '/services' },
-    { id: 'onboarding', label: 'Onboarding', icon: BookOpen, route: '/onboarding' },
-    { id: 'my-gigs', label: 'My Gigs', icon: Hammer, route: '/my-gigs' },
+    { id: 'browse', label: 'Browse Services', icon: Layers, route: '/browse-services' },
+    { id: 'my-gigs', label: 'My Services', icon: Hammer, route: '/services' },
     { id: 'my-orders', label: 'My Orders', icon: ClipboardList, route: '/my-orders' },
     { id: 'orders', label: 'Active Orders', icon: Truck, route: '/active-orders' },
     { id: 'messages', label: 'Messages', icon: MessageCircle, route: '/messages' },
@@ -48,7 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggle })
     { id: 'payments', label: 'Payments', icon: CreditCard, route: '/payments' },
     { id: 'users', label: 'Users', icon: Users, route: '/users' },
     { id: 'gigs', label: 'Gigs', icon: Briefcase, route: '/gigs' },
-    { id: 'profile', label: 'Profile', icon: User, route: '/profile' },
+    { id: 'profile', label: 'Profile', icon: User, route: '/profile-completion' },
     { id: 'settings', label: 'Settings', icon: Settings, route: '/settings' },
   ];
 

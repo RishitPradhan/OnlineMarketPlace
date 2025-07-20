@@ -1,12 +1,55 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../ui/Card';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+
+const LOCAL_PROFILE_KEY = 'profileData';
+const LOCAL_SKILLS_KEY = 'skillsData';
+const LOCAL_SERVICES_KEY = 'servicesData';
+const LOCAL_PORTFOLIO_KEY = 'portfolioProjects';
 
 export const DashboardOverview: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [showGettingStartedGuide, setShowGettingStartedGuide] = React.useState(false);
+  const [profileCompletion, setProfileCompletion] = useState(0);
+  const [profileChecks, setProfileChecks] = useState({
+    profile: false,
+    bio: false,
+    portfolio: false,
+    skills: false
+  });
+
+  useEffect(() => {
+    function recalcProfileCompletion() {
+      const profileRaw = localStorage.getItem(LOCAL_PROFILE_KEY);
+      let profile = null;
+      if (profileRaw) profile = JSON.parse(profileRaw);
+      // Skills
+      const skillsRaw = localStorage.getItem(LOCAL_SKILLS_KEY);
+      const skills = skillsRaw ? JSON.parse(skillsRaw) : [];
+      // Portfolio
+      const portfolioRaw = localStorage.getItem(LOCAL_PORTFOLIO_KEY);
+      const portfolio = portfolioRaw ? JSON.parse(portfolioRaw) : [];
+
+      const checks = {
+        profile: !!(profile && profile.firstName && profile.lastName && profile.hourlyRate && profile.location),
+        bio: !!(profile && profile.bio && String(profile.bio).trim() !== ''),
+        portfolio: Array.isArray(portfolio) && portfolio.length > 0,
+        skills: Array.isArray(skills) && skills.length > 0
+      };
+      setProfileChecks(checks);
+      const completed = Object.values(checks).filter(Boolean).length;
+      setProfileCompletion(Math.round((completed / 4) * 100));
+    }
+    recalcProfileCompletion();
+    window.addEventListener('storage', recalcProfileCompletion);
+    window.addEventListener('skills-updated', recalcProfileCompletion);
+    return () => {
+      window.removeEventListener('storage', recalcProfileCompletion);
+      window.removeEventListener('skills-updated', recalcProfileCompletion);
+    };
+  }, []);
   
   // Function to switch dashboard tabs
   const switchToTab = (tab: string) => {
@@ -43,46 +86,51 @@ export const DashboardOverview: React.FC = () => {
               >
                 Browse Services
               </button>
-              <button 
-                onClick={() => navigate('/profile-completion')}
-                className="px-6 py-3 bg-dark-800 hover:bg-dark-700 text-white border border-green-200 font-semibold rounded-lg transition-all duration-300 transform hover:scale-102"
-              >
-                Complete Profile
-              </button>
+              {/* Hide Complete Profile button if profileCompletion is 100% */}
+              {profileCompletion < 100 && (
+                <button 
+                  onClick={() => navigate('/profile-completion')}
+                  className="px-6 py-3 bg-dark-800 hover:bg-dark-700 text-white border border-green-200 font-semibold rounded-lg transition-all duration-300 transform hover:scale-102"
+                >
+                  Complete Profile
+                </button>
+              )}
             </div>
           </div>
         </Card>
 
-        {/* Profile Completion Progress */}
-        <Card className="glass-effect neon-border p-6 mb-8 hover-scale-subtle">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-semibold text-white dark:text-white text-green-800">
-              Profile Completion
-            </h3>
-            <span className="text-sm text-green-400">0% Complete</span>
-          </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-4">
-            <div className="bg-green-500 h-2 rounded-full" style={{ width: '0%' }}></div>
-          </div>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div className="flex items-center">
-              <span className="text-red-500 mr-2">×</span>
-              <span className="text-gray-300">Profile Picture</span>
+        {/* Profile Completion Progress or Complete Message */}
+        {profileCompletion < 100 && (
+          <Card className="glass-effect neon-border p-6 mb-8 hover-scale-subtle">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-white dark:text-white text-green-800">
+                Profile Completion
+              </h3>
+              <span className="text-sm text-green-400">{profileCompletion}% Complete</span>
             </div>
-            <div className="flex items-center">
-              <span className="text-red-500 mr-2">×</span>
-              <span className="text-gray-300">Bio Added</span>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-4">
+              <div className="bg-green-500 h-2 rounded-full" style={{ width: `${profileCompletion}%` }}></div>
             </div>
-            <div className="flex items-center">
-              <span className="text-red-500 mr-2">×</span>
-              <span className="text-gray-300">Portfolio</span>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="flex items-center">
+                <span className={profileChecks.profile ? 'text-green-500 mr-2' : 'text-red-500 mr-2'}>{profileChecks.profile ? '✓' : '×'}</span>
+                <span className="text-gray-300">Profile Info</span>
+              </div>
+              <div className="flex items-center">
+                <span className={profileChecks.bio ? 'text-green-500 mr-2' : 'text-red-500 mr-2'}>{profileChecks.bio ? '✓' : '×'}</span>
+                <span className="text-gray-300">Bio Added</span>
+              </div>
+              <div className="flex items-center">
+                <span className={profileChecks.portfolio ? 'text-green-500 mr-2' : 'text-red-500 mr-2'}>{profileChecks.portfolio ? '✓' : '×'}</span>
+                <span className="text-gray-300">Portfolio</span>
+              </div>
+              <div className="flex items-center">
+                <span className={profileChecks.skills ? 'text-green-500 mr-2' : 'text-red-500 mr-2'}>{profileChecks.skills ? '✓' : '×'}</span>
+                <span className="text-gray-300">Skills</span>
+              </div>
             </div>
-            <div className="flex items-center">
-              <span className="text-red-500 mr-2">×</span>
-              <span className="text-gray-300">Skills</span>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        )}
 
         {/* Getting Started Guide */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

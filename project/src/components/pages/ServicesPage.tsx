@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
 const ServicesPage: React.FC = () => {
+  console.log('ServicesPage MOUNT');
   const navigate = useNavigate();
+  const { user, loading } = useAuth();
+  const userId = user?.id;
+  const LOCAL_KEY = userId ? `servicesData_${userId}` : null;
   const [activeTab, setActiveTab] = useState('create');
-
   const [newService, setNewService] = useState({
     title: '',
     category: '',
@@ -13,8 +17,22 @@ const ServicesPage: React.FC = () => {
     deliveryTime: '',
     features: ['']
   });
+  const [editIndex, setEditIndex] = useState<number | null>(null);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [services, setServices] = useState<any[]>([]);
 
-  const existingServices: any[] = [];
+  useEffect(() => {
+    if (!LOCAL_KEY) return;
+    const data = localStorage.getItem(LOCAL_KEY);
+    setServices(data ? JSON.parse(data) : []);
+  }, [LOCAL_KEY]);
+
+  if (loading || !userId) {
+    return <div className="flex items-center justify-center min-h-screen text-xl text-green-400">Loading...</div>;
+  }
+
+  // Debug: log gigs array every render
+  console.log('ServicesPage render services:', services);
 
   const categories = [
     'Web Development',
@@ -36,15 +54,64 @@ const ServicesPage: React.FC = () => {
   };
 
   const handleSubmit = (e: React.FormEvent) => {
+    console.log('Service Submit');
     e.preventDefault();
-    console.log('Creating new service:', newService);
-    // Here you would typically save to your backend
+    if (editIndex !== null) {
+      const updated = [...services];
+      updated[editIndex] = { ...newService };
+      setServices(updated);
+      if (LOCAL_KEY) {
+        localStorage.setItem(LOCAL_KEY, JSON.stringify(updated));
+      }
+      setEditIndex(null);
+      setSuccessMsg('Service updated!');
+    } else {
+      const updated = [
+        ...services,
+        { ...newService, id: Date.now() }
+      ];
+      console.log('Updated services:', updated);
+      setServices(updated);
+      if (LOCAL_KEY) {
+        localStorage.setItem(LOCAL_KEY, JSON.stringify(updated));
+      }
+      setSuccessMsg('Service created!');
+    }
+    setNewService({ title: '', category: '', description: '', price: '', deliveryTime: '', features: [''] });
     setActiveTab('manage');
+    setTimeout(() => setSuccessMsg(''), 1500);
+  };
+
+  const handleEdit = (idx: number) => {
+    setEditIndex(idx);
+    setNewService(services[idx]);
+    setActiveTab('create');
+  };
+
+  const handleDelete = (idx: number) => {
+    const updated = services.filter((_: any, i: number) => i !== idx);
+    setServices(updated);
+    if (LOCAL_KEY) {
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(updated));
+    }
+    setSuccessMsg('Service deleted!');
+    setTimeout(() => setSuccessMsg(''), 1500);
+  };
+
+  const handleReset = () => {
+    setNewService({ title: '', category: '', description: '', price: '', deliveryTime: '', features: [''] });
+    setEditIndex(null);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-950 to-dark-900">
       <div className="w-full px-6 py-8">
+        <button
+          onClick={() => navigate('/profile-completion')}
+          className="mb-6 px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold shadow transition-all"
+        >
+          Profile
+        </button>
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-white mb-4">
@@ -184,39 +251,7 @@ const ServicesPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="grid gap-6">
-              {existingServices.map((service) => (
-                <div key={service.id} className="bg-dark-800 rounded-lg p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-semibold text-white mb-2">{service.title}</h3>
-                      <p className="text-gray-300 mb-2">{service.category}</p>
-                      <div className="flex items-center space-x-4 text-sm">
-                        <span className="text-green-400 font-medium">{service.price}</span>
-                        <span className="text-gray-400">•</span>
-                        <span className="text-gray-400">{service.orders} orders</span>
-                        <span className="text-gray-400">•</span>
-                        <span className="text-yellow-400">★ {service.rating}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        service.status === 'active' 
-                          ? 'bg-green-500/20 text-green-400' 
-                          : 'bg-yellow-500/20 text-yellow-400'
-                      }`}>
-                        {service.status}
-                      </span>
-                      <button className="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors duration-200">
-                        Edit
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {existingServices.length === 0 ? (
+            {services.length === 0 ? (
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">💼</div>
                 <h3 className="text-xl font-semibold text-white mb-2">No Services Yet</h3>
@@ -230,7 +265,7 @@ const ServicesPage: React.FC = () => {
               </div>
             ) : (
               <div className="grid gap-6">
-                {existingServices.map((service) => (
+                {services.map((service: any, idx: number) => (
                   <div key={service.id} className="bg-dark-800 rounded-lg p-6">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
@@ -252,8 +287,17 @@ const ServicesPage: React.FC = () => {
                         }`}>
                           {service.status}
                         </span>
-                        <button className="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors duration-200">
+                        <button 
+                          onClick={() => handleEdit(idx)}
+                          className="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors duration-200"
+                        >
                           Edit
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(idx)}
+                          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200"
+                        >
+                          Delete
                         </button>
                       </div>
                     </div>
