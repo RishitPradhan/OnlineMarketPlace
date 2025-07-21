@@ -56,6 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const newUser = await authService.register(userData);
       console.log('[AuthContext] Registration successful, user:', newUser);
       setUser(newUser);
+      return newUser;
     } catch (error: any) {
       console.error('[AuthContext] Registration failed:', error);
       throw new Error(error.message || 'Registration failed. Please try again.');
