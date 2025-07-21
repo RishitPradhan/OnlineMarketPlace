@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-const LOCAL_KEY = 'skillsData';
+import { useAuth } from '../../contexts/AuthContext';
 
 const SkillsPage: React.FC = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const userId = user?.id;
+  const LOCAL_KEY = userId ? `skillsData_${userId}` : 'skillsData';
   const [newSkill, setNewSkill] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   // Remove all useState/useEffect for skills
   // Use this to display skills:
-  const skills = JSON.parse(localStorage.getItem('skillsData') || '[]');
+  const skills = JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]');
 
   const categories = [
     'Programming',
@@ -27,8 +29,8 @@ const SkillsPage: React.FC = () => {
   const levels = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
 
   const saveSkills = (skillsArr: any[]) => {
-    localStorage.setItem('skillsData', JSON.stringify(skillsArr));
-    window.dispatchEvent(new StorageEvent('storage', { key: 'skillsData', newValue: JSON.stringify(skillsArr) }));
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(skillsArr));
+    window.dispatchEvent(new StorageEvent('storage', { key: LOCAL_KEY, newValue: JSON.stringify(skillsArr) }));
     window.dispatchEvent(new Event('skills-updated'));
     window.dispatchEvent(new Event('profile-updated'));
     const profileData = localStorage.getItem('profileData');
@@ -75,7 +77,7 @@ const SkillsPage: React.FC = () => {
   };
 
   const handleReset = () => {
-    localStorage.setItem('skillsData', JSON.stringify([]));
+    localStorage.setItem(LOCAL_KEY, JSON.stringify([]));
     setSuccessMsg('Skills reset!');
     setTimeout(() => setSuccessMsg(''), 1500);
   };

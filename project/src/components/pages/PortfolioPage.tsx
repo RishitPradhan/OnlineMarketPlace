@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-const LOCAL_KEY = 'portfolioProjects';
+import { useAuth } from '../../contexts/AuthContext';
 
 const PortfolioPage: React.FC = () => {
   console.log('PortfolioPage MOUNT');
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const userId = user?.id;
+  const LOCAL_KEY = userId ? `portfolioProjects_${userId}` : 'portfolioProjects';
   const [activeTab, setActiveTab] = useState('view');
   const [newProject, setNewProject] = useState({
     title: '',
@@ -18,7 +20,7 @@ const PortfolioPage: React.FC = () => {
   const [editIndex, setEditIndex] = useState<number | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
   const [projects, setProjects] = useState<any[]>(() => {
-    const data = localStorage.getItem('portfolioProjects');
+    const data = localStorage.getItem(LOCAL_KEY);
     const parsed = data ? JSON.parse(data) : [];
     console.log('PortfolioPage initial load from localStorage:', parsed);
     return parsed;
@@ -50,7 +52,8 @@ const PortfolioPage: React.FC = () => {
       const updated = [...projects];
       updated[editIndex] = { ...newProject, technologies: newProject.technologies.split(',').map(t => t.trim()) };
       setProjects(updated);
-      localStorage.setItem('portfolioProjects', JSON.stringify(updated));
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new Event('portfolio-updated'));
       setEditIndex(null);
       setSuccessMsg('Project updated!');
     } else {
@@ -60,7 +63,8 @@ const PortfolioPage: React.FC = () => {
       ];
       console.log('Updated projects:', updated);
       setProjects(updated);
-      localStorage.setItem('portfolioProjects', JSON.stringify(updated));
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new Event('portfolio-updated'));
       setSuccessMsg('Project added!');
     }
     setNewProject({ title: '', category: '', description: '', imageUrl: '', projectUrl: '', technologies: '' });
@@ -85,7 +89,8 @@ const PortfolioPage: React.FC = () => {
   const handleDelete = (idx: number) => {
     const updated = projects.filter((_: any, i: number) => i !== idx);
     setProjects(updated);
-    localStorage.setItem('portfolioProjects', JSON.stringify(updated));
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new Event('portfolio-updated'));
     setSuccessMsg('Project deleted!');
     setTimeout(() => setSuccessMsg(''), 1500);
   };
@@ -267,7 +272,6 @@ const PortfolioPage: React.FC = () => {
               </div>
             ) : (
               <>
-                {console.log('Rendering projects:', projects)}
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
                   {projects.map((project: any, index: number) => (
                     <div key={project.id} className="bg-dark-800 rounded-lg overflow-hidden hover:scale-[1.02] transition-all duration-300">
