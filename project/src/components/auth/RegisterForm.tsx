@@ -90,6 +90,12 @@ export const RegisterForm: React.FC = () => {
             </span>
             <h1 className="text-2xl font-bold text-green-700 dark:text-green-400">Create your account</h1>
           </div>
+          {errorMessage && (
+            <div className="w-full mb-4 flex items-center bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-lg">
+              <AlertCircle className="w-5 h-5 mr-2 text-red-500" />
+              <span className="text-sm font-medium">{errorMessage}</span>
+            </div>
+          )}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 w-full">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
@@ -201,15 +207,6 @@ export const RegisterForm: React.FC = () => {
                 <p className="mt-2 text-sm text-red-400 dark:text-red-400 text-red-600">{errors.role.message}</p>
               )}
             </div>
-            {errorMessage && (
-              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start space-x-3">
-                <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-red-400 text-sm font-medium">Registration Failed</p>
-                  <p className="text-red-300 text-sm mt-1">{errorMessage}</p>
-                </div>
-              </div>
-            )}
             <Button
               type="submit"
               loading={isLoading}
