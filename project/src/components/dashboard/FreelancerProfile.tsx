@@ -1,11 +1,46 @@
 import React, { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Star, ArrowLeft, Share2, Bookmark, Flag, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 
 export const FreelancerProfile: React.FC = () => {
-  const location = useLocation();
+  const { id } = useParams();
   const navigate = useNavigate();
-  const { freelancer, service } = (location.state || {}) as any;
+  const [freelancer, setFreelancer] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedPackage, setSelectedPackage] = useState(1);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  React.useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    supabase
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .single()
+      .then(({ data }) => {
+        setFreelancer(data);
+        setLoading(false);
+      });
+  }, [id]);
+
+  // Only after all hooks, do your early returns:
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center text-green-500 text-xl">Loading profile...</div>;
+  }
+  if (!freelancer) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-dark-950 to-dark-900">
+        <div className="glass-effect rounded-xl p-8 text-center">
+          <h2 className="text-2xl font-bold text-green-700 mb-4">No freelancer data found.</h2>
+          <button onClick={() => navigate(-1)} className="mt-4 px-6 py-2 bg-green-600 text-white rounded-lg font-medium flex items-center gap-2">
+            <ArrowLeft className="w-4 h-4" /> Back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Dummy works/projects for the gallery
   const works = Array.from({ length: 4 }).map((_, i) => ({
@@ -40,7 +75,6 @@ export const FreelancerProfile: React.FC = () => {
       delivery: '7 days',
     },
   ];
-  const [selectedPackage, setSelectedPackage] = useState(1);
 
   // Dummy FAQ
   const faqs = [
@@ -48,7 +82,6 @@ export const FreelancerProfile: React.FC = () => {
     { q: 'Can you redesign my existing website?', a: 'Absolutely! I can modernize and improve your current site.' },
     { q: 'Do you provide support after delivery?', a: 'Yes, I offer 2 weeks of free support after project completion.' },
   ];
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   // Dummy reviews
   const reviews = Array.from({ length: 7 }).map((_, i) => ({
@@ -93,19 +126,6 @@ export const FreelancerProfile: React.FC = () => {
   const gigBannerUrl = '/gigbanner.webp';
   const gigBanner = gigBannerUrl;
 
-  if (!freelancer) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-dark-950 to-dark-900">
-        <div className="glass-effect rounded-xl p-8 text-center">
-          <h2 className="text-2xl font-bold text-green-700 mb-4">No freelancer data found.</h2>
-          <button onClick={() => navigate(-1)} className="mt-4 px-6 py-2 bg-green-600 text-white rounded-lg font-medium flex items-center gap-2">
-            <ArrowLeft className="w-4 h-4" /> Back
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-green-50 dark:from-dark-950 dark:to-dark-900 py-8 px-0 relative">
       {/* Small circular back button in top left */}
@@ -123,7 +143,7 @@ export const FreelancerProfile: React.FC = () => {
           <div className="flex items-center text-sm text-gray-500 mb-2 gap-2">
             <button onClick={() => navigate('/')} className="hover:underline">Home</button>
             <span>/</span>
-            <button onClick={() => navigate(-1)} className="hover:underline">{service?.title || 'Service'}</button>
+            <button onClick={() => navigate(-1)} className="hover:underline">{freelancer.service_title || 'Service'}</button>
             <span>/</span>
             <span className="text-green-700 dark:text-green-400 font-semibold">{freelancer.name}</span>
           </div>
@@ -144,7 +164,7 @@ export const FreelancerProfile: React.FC = () => {
               <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                 <Star className="w-4 h-4 text-yellow-400 fill-current" />
                 <span>{freelancer.rating}</span>
-                <span className="text-gray-400">({freelancer.reviewCount} reviews)</span>
+                <span className="text-gray-400">({freelancer.review_count} reviews)</span>
               </div>
             </div>
           </div>
@@ -251,7 +271,7 @@ export const FreelancerProfile: React.FC = () => {
             <div className="flex items-center gap-2 justify-center mb-2">
               <Star className="w-4 h-4 text-yellow-400 fill-current" />
               <span className="font-medium">{freelancer.rating}</span>
-              <span className="text-gray-400">({freelancer.reviewCount} reviews)</span>
+              <span className="text-gray-400">({freelancer.review_count} reviews)</span>
             </div>
             <div className="text-gray-600 dark:text-gray-300 text-sm mb-2">{freelancer.tagline}</div>
             <div className="flex flex-wrap gap-2 justify-center mb-2">

@@ -411,7 +411,7 @@ export const DashboardOverview: React.FC = () => {
   return (
     <div className="p-6 bg-gradient-to-br from-dark-950 to-dark-900 dark:from-dark-950 dark:to-dark-900 from-white to-white min-h-full">
       {/* Welcome Section */}
-      <Card className="glass-effect neon-border p-6 mb-8 transform transition-transform duration-300 hover:scale-105">
+      <Card className="glass-effect neon-border p-6 mb-8 transform transition-transform duration-300 hover:scale-103">
         <h1 className="text-4xl font-bold text-white dark:text-white text-green-800 mb-2">
           Welcome back, Elite Freelancer! 👋
         </h1>
@@ -423,7 +423,7 @@ export const DashboardOverview: React.FC = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {stats.map((stat, index) => (
-          <Card key={index} className="glass-effect neon-border p-6 transform transition-all duration-300 hover:scale-105 hover:shadow-lg cursor-pointer">
+          <Card key={index} className="glass-effect neon-border p-6 transform transition-all duration-300 hover:scale-103 hover:shadow-lg cursor-pointer">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-dark-300 dark:text-dark-300 text-green-600 text-sm font-medium">
@@ -455,7 +455,7 @@ export const DashboardOverview: React.FC = () => {
 
       {/* Recent Orders */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="glass-effect neon-border p-6 transform transition-all duration-300 hover:scale-105 hover:shadow-lg">
+        <Card className="glass-effect neon-border p-6 transform transition-all duration-300 hover:scale-103 hover:shadow-lg">
           <h3 className="text-xl font-semibold text-white dark:text-white text-green-800 mb-4">
             Recent Orders
           </h3>
@@ -497,7 +497,7 @@ export const DashboardOverview: React.FC = () => {
         </Card>
 
         {/* Quick Actions */}
-        <Card className="glass-effect neon-border p-6 transform transition-all duration-300 hover:scale-105 hover:shadow-lg">
+        <Card className="glass-effect neon-border p-6 transform transition-all duration-300 hover:scale-103 hover:shadow-lg">
           <h3 className="text-xl font-semibold text-white dark:text-white text-green-800 mb-4">
             Quick Actions
           </h3>

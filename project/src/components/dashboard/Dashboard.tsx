@@ -336,6 +336,18 @@ interface ChatProps {
   currentUser: UserItem;
 }
 
+// Move getInitials and getRandomColor to the top of the file, after imports
+function getInitials(fullName: string) {
+  if (!fullName) return '';
+  const parts = fullName.trim().split(' ').filter(Boolean);
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+function getRandomColor(id: string) {
+  const colors = ['bg-green-500', 'bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-yellow-500', 'bg-indigo-500'];
+  return colors[id.charCodeAt(0) % colors.length];
+}
+
 // ChatSidebar: shows users and groups, allows selection
 const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, currentUser }) => {
   const [users, setUsers] = useState<UserItem[]>([]);
@@ -344,6 +356,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'users' | 'groups' | 'recent'>('recent');
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
       // Fetch users who have messaged the current user (recent chats)
     useEffect(() => {
@@ -469,15 +482,6 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
     group.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getInitials = (first_name: string, last_name: string) => {
-    return (first_name?.[0] || '') + (last_name?.[0] || '');
-  };
-
-  const getRandomColor = (id: string) => {
-    const colors = ['bg-green-500', 'bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-yellow-500', 'bg-indigo-500'];
-    return colors[id.charCodeAt(0) % colors.length];
-  };
-
   return (
     <div className="h-full flex flex-col">
       {/* Search Bar */}
@@ -556,8 +560,8 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
                         : 'hover:border-green-500/20 border border-transparent'
                     }`}
                   >
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm mr-3 ${getRandomColor(user.id)}`}>
-                      {getInitials(user.first_name, user.last_name)}
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm mr-3 ${getRandomColor(user.id)}`} onClick={e => { e.stopPropagation(); navigate(`/user/${user.id}`); }} style={{ cursor: 'pointer' }}>
+                      {getInitials(user.first_name + ' ' + user.last_name)}
                     </div>
                     <div className="flex-1 text-left">
                       <p className="text-white font-medium text-sm">{user.first_name} {user.last_name}</p>
@@ -596,8 +600,8 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
                           : 'hover:border-green-500/20 border border-transparent'
                       }`}
                     >
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm mr-3 ${getRandomColor(user.id)}`}>
-                        {getInitials(user.first_name, user.last_name)}
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm mr-3 ${getRandomColor(user.id)}`} onClick={e => { e.stopPropagation(); navigate(`/user/${user.id}`); }} style={{ cursor: 'pointer' }}>
+                        {getInitials(user.first_name + ' ' + user.last_name)}
                       </div>
                       <div className="flex-1 text-left">
                         <p className="text-white font-medium text-sm">{user.first_name} {user.last_name}</p>
@@ -619,13 +623,39 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
 };
 
 function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | null; currentUser: UserItem }) {
+  // All hooks at the top
   const [messages, setMessages] = React.useState<any[]>([]);
   const [input, setInput] = React.useState('');
   const [loading, setLoading] = React.useState(true);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const messagesContainerRef = React.useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const [chatUser, setChatUser] = useState<UserItem | null>(null);
+  const [senderMap, setSenderMap] = useState<{ [id: string]: { first_name: string; last_name: string } }>({});
+  const [showEmotePicker, setShowEmotePicker] = useState(false);
+  const emojiList = ['😀', '😂', '😍', '👍', '🙏', '🎉', '😎', '😢', '🔥', '❤️'];
 
-  React.useEffect(() => {
+  // Fetch chatUser if selectedChat.type === 'user'
+  useEffect(() => {
+    if (selectedChat && selectedChat.type === 'user') {
+      supabase
+        .from('users')
+        .select('id, first_name, last_name')
+        .eq('id', selectedChat.id)
+        .single()
+        .then(({ data, error }) => {
+          if (data) {
+            setChatUser(data);
+          } else {
+            setChatUser(null);
+          }
+        });
+    } else {
+      setChatUser(null);
+    }
+  }, [selectedChat]);
+
+  useEffect(() => {
     if (!selectedChat) return;
 
     let mounted = true;
@@ -734,6 +764,31 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
     };
   }, [selectedChat, currentUser.id]);
 
+  // Fetch sender info for all unique sender_ids in messages
+  useEffect(() => {
+    if (!messages || messages.length === 0) return;
+    const uniqueSenderIds = Array.from(new Set(messages.map(msg => msg.sender_id)));
+    const missingIds = uniqueSenderIds.filter(id => !senderMap[id]);
+    if (missingIds.length === 0) return;
+    Promise.all(
+      missingIds.map(id =>
+        supabase
+          .from('users')
+          .select('id, first_name, last_name')
+          .eq('id', id)
+          .single()
+          .then(({ data }) => ({ id, data }))
+      )
+    ).then(results => {
+      const newMap = { ...senderMap };
+      results.forEach(({ id, data }) => {
+        if (data) newMap[id] = { first_name: data.first_name, last_name: data.last_name };
+      });
+      setSenderMap(newMap);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
+
   // Track previous selectedChat and last message id
   const prevChatIdRef = useRef<string | null>(null);
   const prevLastMsgIdRef = useRef<string | null>(null);
@@ -763,6 +818,7 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
     requestAnimationFrame(scroll);
   }, [loading, selectedChat, messages]);
 
+  // 1. When sending a message, set unread=true for the receiver
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedChat || !input.trim() || !currentUser) return;
@@ -772,7 +828,7 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
         sender_id: currentUser.id,
         content: input.trim(),
         ...(selectedChat.type === 'user' 
-          ? { receiver_id: selectedChat.id }
+          ? { receiver_id: selectedChat.id, unread: true }
           : { group_id: selectedChat.id }
         ),
       };
@@ -807,19 +863,32 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
     }
   };
 
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase();
-  };
+  // 2. When opening a chat, mark all messages from the selected user to the current user as unread=false
+  React.useEffect(() => {
+    if (!selectedChat || !currentUser) return;
+    if (selectedChat.type !== 'user') return;
+    // Mark all messages from selected user to current user as read
+    const markAsRead = async () => {
+      await supabase
+        .from('messages')
+        .update({ unread: false })
+        .eq('sender_id', selectedChat.id)
+        .eq('receiver_id', currentUser.id)
+        .eq('unread', true);
+    };
+    markAsRead();
+  }, [selectedChat, currentUser]);
 
-  const getRandomColor = (id: string) => {
-    const colors = ['bg-green-500', 'bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-yellow-500', 'bg-indigo-500'];
-    return colors[id.charCodeAt(0) % colors.length];
-  };
+  // 3. Add a function to fetch the count of unread messages for the current user
+  // This function is now at the top-level
 
+  // 4. Export a helper to fetch unread notifications for the NotificationsPage
+  // This function is now at the top-level
+
+  // Only after all hooks, do your early returns:
   if (!currentUser) {
     return <LoadingScreen message="Loading user data..." size="sm" />;
   }
-
   if (!selectedChat) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -840,29 +909,36 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
     <div className="flex flex-col h-full">
       {/* Chat Header */}
       <div className="flex items-center p-4 border-b border-green-500/20 bg-dark-900/30">
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm mr-3 ${
-          selectedChat.type === 'user' ? getRandomColor(selectedChat.id) : 'bg-blue-500'
-        }`}>
-          {getInitials(selectedChat.name)}
+        <div
+          className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm mr-3 ${
+            selectedChat.type === 'user' && chatUser ? getRandomColor(chatUser.id) : 'bg-blue-500'
+          }`}
+          style={{ cursor: selectedChat.type === 'user' ? 'pointer' : 'default' }}
+          onClick={() => {
+            if (selectedChat.type === 'user') {
+              navigate(`/user/${selectedChat.id}`);
+            }
+          }}
+        >
+          {selectedChat.type === 'user' && chatUser
+            ? getInitials((chatUser.first_name || '') + ' ' + (chatUser.last_name || ''))
+            : getInitials(selectedChat.name)}
         </div>
-        <div className="flex-1">
+        <div
+          className="flex-1"
+          style={{ cursor: selectedChat.type === 'user' ? 'pointer' : 'default' }}
+          onClick={() => {
+            if (selectedChat.type === 'user') {
+              navigate(`/user/${selectedChat.id}`);
+            }
+          }}
+        >
           <h3 className="text-white font-semibold">{selectedChat.name}</h3>
           <p className="text-green-400/60 text-sm">
             {selectedChat.type === 'user' ? 'Online' : 'Group'}
           </p>
         </div>
-        <div className="flex items-center space-x-2">
-          <button className="p-2 text-green-400 hover:text-green-300 transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-            </svg>
-          </button>
-          <button className="p-2 text-green-400 hover:text-green-300 transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-          </button>
-        </div>
+        {/* Removed call and video call icons */}
       </div>
 
       {/* Messages Area */}
@@ -895,8 +971,8 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
                 <div className={`flex ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'} items-end max-w-xs lg:max-w-md`}>
                   {!isOwnMessage && (
                     showAvatar ? (
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-xs mr-2 mb-1 ${getRandomColor(msg.sender_id)}`}>
-                        {getInitials(msg.sender_id)}
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-xs mr-2 mb-1 ${getRandomColor(msg.sender_id)}`} onClick={() => navigate(`/user/${msg.sender_id}`)} style={{ cursor: 'pointer' }}>
+                        {senderMap[msg.sender_id] ? getInitials(senderMap[msg.sender_id].first_name + ' ' + senderMap[msg.sender_id].last_name) : '?'}
                       </div>
                     ) : (
                       // Placeholder to reserve space for avatar
@@ -925,16 +1001,35 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
 
       {/* Message Input */}
       <div className="p-4 border-t border-green-500/20 bg-dark-900/30">
-        <form onSubmit={sendMessage} className="flex items-center space-x-3">
+        <form onSubmit={sendMessage} className="flex items-center space-x-3 relative">
+          {/* Emote Button */}
           <button
             type="button"
-            className="p-2 text-green-400 hover:text-green-300 transition-colors"
+            className="p-2 text-green-400 hover:text-green-300 transition-colors relative"
+            onClick={() => setShowEmotePicker(v => !v)}
+            tabIndex={-1}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828L18 9.828a2 2 0 000-2.828z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01" />
-            </svg>
+            <span role="img" aria-label="emoji">😊</span>
           </button>
+          {/* Emoji Picker Popover */}
+          {showEmotePicker && (
+            <div className="absolute bottom-14 left-0 bg-white dark:bg-dark-800 rounded-lg shadow-lg p-2 flex flex-wrap gap-2 z-50">
+              {emojiList.map(emoji => (
+                <button
+                  key={emoji}
+                  type="button"
+                  className="text-2xl p-1 hover:bg-green-100 dark:hover:bg-green-900 rounded transition"
+                  onClick={e => {
+                    e.preventDefault();
+                    setInput(input + emoji);
+                    setShowEmotePicker(false);
+                  }}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          )}
           <input
             type="text"
             placeholder="Type your message..."
@@ -985,3 +1080,28 @@ export const Dashboard: React.FC = () => {
     <DashboardOverview />
   );
 };
+
+export async function fetchUnreadMessageCount(userId: string) {
+  const { count, error } = await supabase
+    .from('messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('receiver_id', userId)
+    .eq('unread', true);
+  return count || 0;
+}
+
+export async function fetchUnreadNotifications(userId: string) {
+  const { data, error } = await supabase
+    .from('messages')
+    .select('id, sender_id, content, created_at')
+    .eq('receiver_id', userId)
+    .eq('unread', true)
+    .order('created_at', { ascending: false });
+  return (data || []).map((msg: any) => ({
+    id: msg.id,
+    type: 'message',
+    from: msg.sender_id,
+    content: msg.content,
+    created_at: msg.created_at
+  }));
+}

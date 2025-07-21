@@ -30,7 +30,7 @@ interface SidebarProps {
   };
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggle }) => {
+export const Sidebar: React.FC<SidebarProps & { unreadMessages?: number; unreadNotifications?: number }> = ({ user, isCollapsed, onToggle, unreadMessages = 0, unreadNotifications = 0 }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const allTabs = [
@@ -40,7 +40,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggle })
     { id: 'my-orders', label: 'My Orders', icon: ClipboardList, route: '/my-orders' },
     { id: 'orders', label: 'Active Orders', icon: Truck, route: '/active-orders' },
     { id: 'messages', label: 'Messages', icon: MessageCircle, route: '/messages' },
-    { id: 'notifications', label: 'Notifications', icon: Bell, route: '/notifications' },
     { id: 'analytics', label: 'Analytics', icon: BarChart2, route: '/analytics' },
     { id: 'reviews', label: 'Reviews', icon: Star, route: '/reviews' },
     { id: 'earnings', label: 'Earnings', icon: Wallet, route: '/earnings' },
@@ -48,7 +47,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggle })
     { id: 'users', label: 'Users', icon: Users, route: '/users' },
     { id: 'gigs', label: 'Gigs', icon: Briefcase, route: '/gigs' },
     { id: 'profile', label: 'Profile', icon: User, route: '/profile-completion' },
-    { id: 'settings', label: 'Settings', icon: Settings, route: '/settings' },
+    // Removed notifications and settings
+    // { id: 'notifications', label: 'Notifications', icon: Bell, route: '/notifications' },
+    // { id: 'settings', label: 'Settings', icon: Settings, route: '/settings' },
   ];
 
   return (
@@ -93,6 +94,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggle })
             .map((tab) => {
               const Icon = tab.icon;
               const isActive = location.pathname === tab.route;
+              // Add badge for messages
+              let badge = null;
+              if (tab.id === 'messages' && unreadMessages > 0) {
+                badge = (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-green-300" style={{ marginLeft: '-10px' }}></span>
+                );
+              }
               return (
                 <button
                   key={tab.id}
@@ -100,14 +108,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, isCollapsed, onToggle })
                     e.stopPropagation();
                     navigate(tab.route);
                   }}
-                  className={`w-full flex items-center ${isCollapsed ? 'justify-center px-3 py-5' : 'px-4 py-3'} text-left rounded-r-xl transition-all duration-300 group transform hover:scale-105
-                    ${isActive ? 'bg-green-300/15 border-l-4 border-green-300 shadow-neon-green-glow text-green-200' : 'text-dark-300 dark:text-dark-300 text-green-600 hover:bg-green-400/10 hover:text-green-400 dark:hover:text-green-400'}
+                  className={`w-full flex items-center relative ${isCollapsed ? 'justify-center px-3 py-5' : 'px-4 py-3'} text-left rounded-r-xl transition-all duration-300 group transform hover:scale-105
+                    ${isActive ? (isCollapsed ? '' : 'bg-green-500 text-white') : (isCollapsed ? '' : 'text-dark-300 dark:text-dark-300 text-green-600')}
                   `}
                   title={isCollapsed ? tab.label : undefined}
-                  style={isActive ? { boxShadow: '0 0 12px 1px #6ee7b733, 0 0 4px 1px #6ee7b755' } : {}}
                 >
-                  <Icon className={`w-6 h-6 min-w-6 min-h-6 ${isCollapsed ? '' : 'mr-4'} transition-all duration-300 group-hover:scale-110 group-hover:text-green-400 dark:group-hover:text-green-400 drop-shadow-neon`} />
-                  <div className={`${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'} transition-all duration-500`}>
+                  {badge}
+                  <span
+                    className={
+                      isCollapsed
+                        ? ''
+                        : ''
+                    }
+                  >
+                    <Icon className={`w-6 h-6 min-w-6 min-h-6 ${isCollapsed ? (isActive ? 'text-green-500' : 'group-hover:text-green-700') : 'mr-4'} transition-all duration-300 group-hover:scale-110 dark:group-hover:text-green-400 drop-shadow-neon`} />
+                  </span>
+                  <div className={`${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'} transition-all duration-500 flex items-center`}>
                     <span className="font-medium text-base whitespace-nowrap tracking-wide">{tab.label}</span>
                   </div>
                 </button>

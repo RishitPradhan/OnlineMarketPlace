@@ -34,6 +34,7 @@ import {
 import MainLayout from './components/layout/MainLayout';
 import BrowseServicesPage from './components/pages/BrowseServicesPage';
 import ProfileCompletionPage from './components/onboarding/ProfileCompletionPage';
+import UserProfile from './components/dashboard/UserProfile';
 
 // Component to redirect authenticated users away from auth pages
 const AuthRedirect: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -89,6 +90,7 @@ function App() {
           <Route path="/skills" element={<SkillsPage />} />
           <Route path="/service" element={<ServiceFreelancers />} />
           <Route path="/browse-services" element={<BrowseServicesPage />} />
+          <Route path="/user/:id" element={<UserProfile />} />
         </Route>
         <Route path="/freelancer/:id" element={<FreelancerProfile />} />
         <Route path="/featured-project" element={<FeaturedProject />} />

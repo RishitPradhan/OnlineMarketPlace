@@ -10,6 +10,7 @@ interface NavbarProps {
     firstName: string;
     lastName: string;
     role: string;
+    unreadNotifications: number;
   };
 }
 
@@ -136,11 +137,15 @@ export const Navbar: React.FC<NavbarProps> = ({ user }) => {
             </button>
 
             <button
-              className="p-2 text-gray-500 dark:text-gray-300 hover:text-green-600 hover:bg-green-50 dark:hover:text-green-400 dark:hover:bg-dark-800/50 rounded-lg transition-all duration-300"
+              className="p-2 text-gray-500 dark:text-gray-300 hover:text-green-600 hover:bg-green-50 dark:hover:text-green-400 dark:hover:bg-dark-800/50 rounded-lg transition-all duration-300 relative"
               onClick={() => navigate('/notifications')}
               aria-label="Notifications"
             >
               <Bell className="w-5 h-5" />
+              {/* Notification badge: small solid green dot above bell */}
+              {user.unreadNotifications > 0 && (
+                <span className="absolute -top-1 right-2 w-2.5 h-2.5 rounded-full bg-green-400 shadow-md"></span>
+              )}
             </button>
             
             <button
@@ -159,6 +164,8 @@ export const Navbar: React.FC<NavbarProps> = ({ user }) => {
               </div>
             </button>
 
+            {/* Removed Settings button */}
+            {/*
             <Button
               variant="ghost"
               size="sm"
@@ -168,6 +175,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user }) => {
               <Settings className="w-4 h-4 mr-2" />
               Settings
             </Button>
+            */}
             
             {/* Logout Button */}
             <Button 
