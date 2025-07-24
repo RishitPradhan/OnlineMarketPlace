@@ -40,11 +40,24 @@ export const LoginForm: React.FC = () => {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     setErrorMessage('');
+    console.log('[LoginForm] Submitting login:', data);
     try {
-      await login(data.email, data.password);
+      const user = await login(data.email, data.password);
+      console.log('[LoginForm] Login result:', user);
+      if (user && user.id) {
       navigate('/dashboard');
+      } else {
+        console.error('[LoginForm] Login failed, no user returned');
+        setErrorMessage('Login failed. Please check your credentials.');
+      }
     } catch (error: any) {
-      setErrorMessage(error.message || 'Login failed. Please check your credentials.');
+      console.error('[LoginForm] Login error:', error);
+      let msg = 'Login failed. Please check your credentials.';
+      if (error) {
+        if (typeof error === 'string') msg = error;
+        else if (error.message) msg = error.message;
+      }
+      setErrorMessage(msg);
     } finally {
       setIsLoading(false);
     }
@@ -73,9 +86,9 @@ export const LoginForm: React.FC = () => {
             <h1 className="text-2xl font-bold text-green-700 dark:text-green-400">Sign in to FreelanceHub</h1>
           </div>
           {errorMessage && (
-            <div className="w-full mb-4 flex items-center bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-lg">
-              <AlertCircle className="w-5 h-5 mr-2 text-red-500" />
-              <span className="text-sm font-medium">{errorMessage}</span>
+            <div className="w-full mb-4 flex items-center bg-red-200 border border-red-400 text-red-800 px-4 py-3 rounded-lg shadow-lg animate-pulse">
+              <AlertCircle className="w-5 h-5 mr-2 text-red-600" />
+              <span className="text-base font-semibold">{errorMessage}</span>
             </div>
           )}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 w-full">

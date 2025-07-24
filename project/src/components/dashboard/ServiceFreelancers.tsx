@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Star, ArrowLeft, Filter, Search, SortAsc, SortDesc, MapPin, Clock, CheckCircle } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 
 interface Freelancer {
   id: string;
@@ -24,7 +25,44 @@ type FilterOption = 'all' | 'top-rated' | 'under-1000' | 'under-2000' | 'fast-de
 export const ServiceFreelancers: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { service } = (location.state || {}) as any;
+  // Try to get category from state, then from query param
+  let service = (location.state && (location.state as any).service) || null;
+  let categoryFromQuery = '';
+  if (!service) {
+    const params = new URLSearchParams(location.search);
+    categoryFromQuery = params.get('category') || '';
+    if (categoryFromQuery) {
+      service = { title: categoryFromQuery, category: categoryFromQuery };
+    }
+  }
+  // If no category, redirect to browse-services
+  React.useEffect(() => {
+    if (!service) {
+      navigate('/browse-services');
+    }
+  }, [service, navigate]);
+
+  const [realServices, setRealServices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch real services from Supabase for this category
+  useEffect(() => {
+    async function fetchServices() {
+      setLoading(true);
+      let query = supabase
+        .from('services')
+        .select('*, freelancer:freelancerId(id, first_name, last_name, avatar, skills)');
+      if (service?.category) {
+        query = query.ilike('category', `%${service.category}%`);
+      } else if (service?.title) {
+        query = query.ilike('category', `%${service.title}%`);
+      }
+      const { data, error } = await query;
+      setRealServices(data || []);
+      setLoading(false);
+    }
+    fetchServices();
+  }, [service]);
 
   // State for filters and sorting
   const [searchTerm, setSearchTerm] = useState('');
@@ -195,7 +233,7 @@ export const ServiceFreelancers: React.FC = () => {
     const serviceInfo = serviceData[serviceType as keyof typeof serviceData] || serviceData['Web Development'];
     const { names, taglines, skills, priceRange } = serviceInfo;
 
-    return Array.from({ length: 24 }).map((_, i) => {
+    const freelancers = Array.from({ length: 24 }).map((_, i) => {
       const name = names[i % names.length];
       const tagline = taglines[i % taglines.length];
       const price = Math.floor(Math.random() * (priceRange.max - priceRange.min + 1)) + priceRange.min;
@@ -225,6 +263,9 @@ export const ServiceFreelancers: React.FC = () => {
         completionRate: Math.round(completionRate)
       };
     });
+    // Store in localStorage for profile page access
+    localStorage.setItem('dummyFreelancers', JSON.stringify(freelancers));
+    return freelancers;
   };
 
   const allFreelancers = getServiceSpecificFreelancers(service?.title || 'Web Development');
@@ -275,6 +316,14 @@ export const ServiceFreelancers: React.FC = () => {
 
     return filtered;
   }, [allFreelancers, searchTerm, sortBy, filterBy]);
+
+  // Fiverr-style grid: decide which to show
+  const servicesToShow = realServices.length > 0 ? realServices : getServiceSpecificFreelancers(service?.title || 'Web Development');
+
+  const isRealFreelancer = (freelancer: any) => {
+    // Heuristic: real freelancers have a UUID id (36 chars, with dashes), dummy have custom ids
+    return typeof freelancer.id === 'string' && freelancer.id.length === 36 && freelancer.id.includes('-');
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-950 to-dark-900 py-8 px-6">
@@ -389,114 +438,89 @@ export const ServiceFreelancers: React.FC = () => {
           </p>
         </div>
 
-        {/* Freelancers Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredAndSortedFreelancers.map((freelancer, i) => (
-            <div
-              key={freelancer.id}
-              className="group bg-white dark:bg-dark-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 cursor-pointer overflow-hidden transform hover:scale-105"
-              onClick={() => navigate(`/freelancer/${i + 1}`, { state: { freelancer, service } })}
-            >
-              {/* Header with image and avatar */}
-              <div className="relative">
-                <div className="w-full h-48 overflow-hidden">
-                  <img 
-                    src={freelancer.workThumb}
-                    alt="Work Thumbnail"
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = fallbackThumb; }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                </div>
-                
-                {/* Avatar overlay */}
-                <div className="absolute -bottom-8 left-4">
-                  <div className="relative">
-                    <img 
-                      src={freelancer.avatar} 
-                      alt={freelancer.name} 
-                      className="w-16 h-16 rounded-full border-4 border-white dark:border-dark-800 shadow-lg"
-                      onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=facearea&w=150&h=150&q=80'; }}
+        {/* Services Grid */}
+        {loading ? (
+          <div className="text-center py-12 text-green-400">Loading...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {servicesToShow.map((service, i) => (
+              <div
+                key={service.id}
+                className="group bg-white dark:bg-dark-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 cursor-pointer overflow-hidden transform hover:scale-105"
+                onClick={() => {
+                  if (service.freelancer && service.freelancer.id && !service.id.toString().startsWith('web-') && !service.id.toString().startsWith('dummy-')) {
+                    navigate(`/freelancer/${service.freelancer.id}`, { state: { freelancer: service.freelancer, service } });
+                  } else {
+                    const serviceType = (service.category || service?.title || 'Web Development').toLowerCase().replace(/\s+/g, '-');
+                    navigate(`/dummy-freelancer/${service.id}`, { state: { freelancer: service, serviceType } });
+                  }
+                }}
+              >
+                {/* Gig Image */}
+                <div className="relative">
+                  <div className="w-full h-48 overflow-hidden">
+                    <img
+                      src={service.image || service.workThumb || '/gigbanner.webp'}
+                      alt={service.title || service.name}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = '/gigbanner.webp'; }}
                     />
-                    {freelancer.rating >= 4.5 && (
-                      <div className="absolute -top-1 -right-1 bg-green-500 text-white rounded-full p-1">
-                        <CheckCircle className="w-4 h-4" />
-                      </div>
-                    )}
                   </div>
-                </div>
-
-                {/* Price badge */}
-                <div className="absolute top-4 right-4 bg-green-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
-                  ₹{freelancer.price}
-                </div>
-              </div>
-
-              {/* Content */}
-              <div className="p-6 pt-12">
-                {/* Name and rating */}
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors duration-300">
-                      {freelancer.name}
-                    </h3>
-                    <div className="flex items-center gap-1 mt-1">
-                      <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {freelancer.rating} ({freelancer.reviewCount})
-                      </span>
+                  {/* Avatar overlay */}
+                  <div className="absolute -bottom-8 left-4">
+                    <div className="relative">
+                      <img
+                        src={service.freelancer?.avatar || service.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(service.freelancer?.first_name || service.name || 'Freelancer')}
+                        alt={service.freelancer?.first_name || service.name || 'Freelancer'}
+                        className="w-16 h-16 rounded-full border-4 border-white dark:border-dark-800 shadow-lg"
+                        onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=facearea&w=150&h=150&q=80'; }}
+                      />
                     </div>
                   </div>
-                </div>
-
-                {/* Tagline */}
-                <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-2">
-                  {freelancer.tagline}
-                </p>
-
-                {/* Stats */}
-                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-4">
-                  <div className="flex items-center gap-1">
-                    <MapPin className="w-3 h-3" />
-                    <span>{freelancer.location}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    <span>{freelancer.responseTime}</span>
+                  {/* Price badge */}
+                  <div className="absolute top-4 right-4 bg-green-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+                    ₹{service.price}
                   </div>
                 </div>
-
-                {/* Skills */}
-                <div className="flex flex-wrap gap-1">
-                  {freelancer.skills.slice(0, 3).map((skill, index) => (
-                    <span 
-                      key={index}
-                      className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full font-medium"
-                    >
-                      {skill}
-                    </span>
-                  ))}
-                  {freelancer.skills.length > 3 && (
-                    <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-xs rounded-full">
-                      +{freelancer.skills.length - 3}
-                    </span>
-                  )}
-                </div>
-
-                {/* Completion rate */}
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">Completion Rate</span>
-                    <span className="font-bold text-green-600 dark:text-green-400">
-                      {freelancer.completionRate}%
-                    </span>
+                {/* Content */}
+                <div className="p-6 pt-12">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors duration-300">
+                        {service.title || service.name}
+                      </h3>
+                      <div className="flex items-center gap-1 mt-1">
+                        <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {service.freelancer?.rating || service.rating || '4.8'} ({service.freelancer?.reviewCount || service.reviewCount || 24})
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-2">
+                    {service.description || service.tagline || ''}
+                  </p>
+                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-4">
+                    <div className="flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      <span>{service.freelancer?.location || service.location || ''}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {(service.freelancer?.skills || service.skills || []).slice(0, 3).map((skill: string, index: number) => (
+                      <span
+                        key={index}
+                        className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full font-medium"
+                      >
+                        {skill}
+                      </span>
+                    ))}
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-
+            ))}
+          </div>
+        )}
         {/* No results message */}
         {filteredAndSortedFreelancers.length === 0 && (
           <div className="text-center py-12">

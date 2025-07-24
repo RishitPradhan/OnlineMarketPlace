@@ -6,6 +6,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 import { FreelancerProfile } from './components/dashboard/FreelancerProfile';
+import DummyFreelancerProfile from './components/dashboard/DummyFreelancerProfile';
 import { ServiceFreelancers } from './components/dashboard/ServiceFreelancers';
 import { FeaturedProject } from './components/dashboard/FeaturedProject';
 import { LoginForm } from './components/auth/LoginForm';
@@ -93,6 +94,7 @@ function App() {
           <Route path="/user/:id" element={<UserProfile />} />
         </Route>
         <Route path="/freelancer/:id" element={<FreelancerProfile />} />
+        <Route path="/dummy-freelancer/:id" element={<DummyFreelancerProfile />} />
         <Route path="/featured-project" element={<FeaturedProject />} />
         <Route path="/test-auth" element={<TestAuth />} />
       </Routes>

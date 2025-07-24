@@ -6,12 +6,14 @@ import { supabase } from '../../lib/supabase';
 export const FreelancerProfile: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [freelancer, setFreelancer] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const location = useLocation();
+  const [freelancer, setFreelancer] = useState<any>(location.state?.freelancer || null);
+  const [loading, setLoading] = useState(!location.state?.freelancer);
   const [selectedPackage, setSelectedPackage] = useState(1);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   React.useEffect(() => {
+    if (freelancer) return; // Already have freelancer from state
     if (!id) return;
     setLoading(true);
     supabase
@@ -23,7 +25,7 @@ export const FreelancerProfile: React.FC = () => {
         setFreelancer(data);
         setLoading(false);
       });
-  }, [id]);
+  }, [id, freelancer]);
 
   // Only after all hooks, do your early returns:
   if (loading) {

@@ -120,7 +120,7 @@ export const Sidebar: React.FC<SidebarProps & { unreadMessages?: number; unreadN
                         ? ''
                         : ''
                     }
-                  >
+                >
                     <Icon className={`w-6 h-6 min-w-6 min-h-6 ${isCollapsed ? (isActive ? 'text-green-500' : 'group-hover:text-green-700') : 'mr-4'} transition-all duration-300 group-hover:scale-110 dark:group-hover:text-green-400 drop-shadow-neon`} />
                   </span>
                   <div className={`${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'} transition-all duration-500 flex items-center`}>

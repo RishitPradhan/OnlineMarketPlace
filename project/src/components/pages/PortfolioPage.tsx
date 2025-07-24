@@ -272,52 +272,52 @@ const PortfolioPage: React.FC = () => {
               </div>
             ) : (
               <>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-                  {projects.map((project: any, index: number) => (
-                    <div key={project.id} className="bg-dark-800 rounded-lg overflow-hidden hover:scale-[1.02] transition-all duration-300">
-                      <div className="relative">
-                        <img
-                          src={project.imageUrl}
-                          alt={project.title}
-                          className="w-full h-48 object-cover"
-                        />
-                        {project.featured && (
-                          <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                            Featured
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-6">
-                        <h3 className="text-xl font-semibold text-white mb-2">{project.title}</h3>
-                        <p className="text-gray-300 mb-3">{project.description}</p>
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {project.technologies.map((tech: string, i: number) => (
-                            <span key={i} className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">
-                              {tech}
-                            </span>
-                          ))}
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                {projects.map((project: any, index: number) => (
+                  <div key={project.id} className="bg-dark-800 rounded-lg overflow-hidden hover:scale-[1.02] transition-all duration-300">
+                    <div className="relative">
+                      <img
+                        src={project.imageUrl}
+                        alt={project.title}
+                        className="w-full h-48 object-cover"
+                      />
+                      {project.featured && (
+                        <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                          Featured
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-400">{project.category}</span>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleEdit(index)}
-                              className="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors duration-200 text-sm"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDelete(index)}
-                              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200 text-sm"
-                            >
-                              Delete
-                            </button>
-                          </div>
+                      )}
+                    </div>
+                    <div className="p-6">
+                      <h3 className="text-xl font-semibold text-white mb-2">{project.title}</h3>
+                      <p className="text-gray-300 mb-3">{project.description}</p>
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {project.technologies.map((tech: string, i: number) => (
+                          <span key={i} className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">
+                            {tech}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-400">{project.category}</span>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleEdit(index)}
+                            className="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors duration-200 text-sm"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(index)}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200 text-sm"
+                          >
+                            Delete
+                          </button>
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
+              </div>
               </>
             )}
           </div>

@@ -41,6 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userData = await authService.login({ email, password });
       console.log('[AuthContext] Login successful, user:', userData);
       setUser(userData);
+      return userData;
     } catch (error: any) {
       console.error('[AuthContext] Login failed:', error);
       throw new Error(error.message || 'Login failed. Please check your credentials.');

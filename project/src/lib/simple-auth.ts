@@ -45,12 +45,25 @@ export const simpleAuthService = {
 
         if (syncError) {
           console.warn('Failed to sync user to users table:', syncError);
-          // Don't throw error here as auth was successful
+          let msg = 'Unknown error';
+          if (syncError && typeof syncError === 'object' && 'message' in syncError) {
+            msg = (syncError as any).message;
+          } else if (typeof syncError === 'string') {
+            msg = syncError;
+          }
+          alert('Failed to sync user to users table: ' + msg);
         } else {
           console.log('✅ User synced to users table successfully');
         }
       } catch (syncError) {
         console.warn('Error syncing user to users table:', syncError);
+        let msg = 'Unknown error';
+        if (syncError && typeof syncError === 'object' && 'message' in syncError) {
+          msg = (syncError as any).message;
+        } else if (typeof syncError === 'string') {
+          msg = syncError;
+        }
+        alert('Error syncing user to users table: ' + msg);
         // Don't throw error here as auth was successful
       }
 
