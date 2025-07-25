@@ -1,11 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { ChatSidebar } from '../dashboard/Dashboard'; // Import ChatSidebar
 import { ChatBox } from '../dashboard/Dashboard'; // Import ChatBox
+import { supabase } from '../../lib/supabase';
+import { useUnreadMessages } from '../layout/MainLayout';
 
 const MessagesPage: React.FC = () => {
   const { user } = useAuth();
   const [selectedChat, setSelectedChat] = useState<any>(null);
+  const { refreshUnreadMessages } = useUnreadMessages();
+
+  useEffect(() => {
+    if (!user) return;
+    const markAllAsRead = async () => {
+      await supabase
+        .from('messages')
+        .update({ unread: false })
+        .eq('receiver_id', user.id);
+      refreshUnreadMessages();
+    };
+    markAllAsRead();
+  }, [user, refreshUnreadMessages]);
 
   if (!user) {
     return (

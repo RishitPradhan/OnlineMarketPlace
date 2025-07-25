@@ -34,14 +34,14 @@ export const simpleAuthService = {
       try {
         const { error: syncError } = await supabase
           .from('users')
-          .insert({
+          .upsert({
             id: authData.user.id,
             email: userData.email,
             first_name: userData.firstName,
             last_name: userData.lastName,
             role: userData.role as 'client' | 'freelancer' | 'admin',
-            password_hash: 'synced_from_auth' // Placeholder since we don't store passwords
-          });
+            password_hash: 'synced_from_auth'
+          }, { onConflict: 'id' });
 
         if (syncError) {
           console.warn('Failed to sync user to users table:', syncError);
@@ -53,7 +53,7 @@ export const simpleAuthService = {
           }
           alert('Failed to sync user to users table: ' + msg);
         } else {
-          console.log('✅ User synced to users table successfully');
+          console.log('✅ User upserted to users table successfully');
         }
       } catch (syncError) {
         console.warn('Error syncing user to users table:', syncError);
@@ -132,14 +132,6 @@ export const simpleAuthService = {
       
       if (!authData.user) {
         throw new Error('Login failed - no user returned');
-      }
-
-      // Check if email is confirmed
-      if (!authData.user.email_confirmed_at) {
-        console.log('⚠️ User email not confirmed yet');
-        console.log('💡 Try running this SQL in Supabase Dashboard:');
-        console.log('UPDATE auth.users SET email_confirmed_at = NOW() WHERE email = \'' + loginData.email + '\';');
-        throw new Error('Please check your email and click the confirmation link before logging in. If no email received, try disabling email confirmation in Supabase Dashboard.');
       }
 
       // Ensure user exists in users table for messaging

@@ -36,3 +36,19 @@ export interface ApiResponse<T = any> {
   message?: string;
   error?: string;
 }
+
+export interface Service {
+  id: string;
+  freelancerId: string;
+  title: string;
+  description: string;
+  category: string;
+  price: number;
+  deliveryTime: number;
+  imageUrl?: string;
+  images: string[];
+  tags?: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

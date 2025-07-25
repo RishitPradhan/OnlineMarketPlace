@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { LoadingScreen } from '../ui/LoadingScreen';
-
+import { useUnreadMessages } from '../layout/MainLayout';
 
 
 // Expanded dummy projects/services
@@ -350,6 +350,7 @@ function getRandomColor(id: string) {
 
 // ChatSidebar: shows users and groups, allows selection
 const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, currentUser }) => {
+  const { refreshUnreadMessages } = useUnreadMessages();
   const [users, setUsers] = useState<UserItem[]>([]);
   const [recentChats, setRecentChats] = useState<UserItem[]>([]);
   const [groups, setGroups] = useState<GroupItem[]>([]);
@@ -362,36 +363,67 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
     useEffect(() => {
       const fetchRecentChats = async () => {
         try {
-          // Get all messages where current user is receiver
+          // Get all messages where current user is sender or receiver
           const { data: messagesData, error: messagesError } = await supabase
             .from('messages')
-            .select('sender_id, sender:users!sender_id(id, first_name, last_name)')
-            .eq('receiver_id', currentUser.id)
-            .neq('sender_id', currentUser.id);
+            .select('sender_id, receiver_id, sender:users!sender_id(id, first_name, last_name), receiver:users!receiver_id(id, first_name, last_name), created_at, unread')
+            .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
+            .order('created_at', { ascending: false });
 
-        if (!messagesError && messagesData && messagesData.length > 0) {
-          // Extract unique users from messages
-          const uniqueUsers = messagesData.reduce((acc: UserItem[], msg: any) => {
-            if (msg.sender && !acc.find(u => u.id === msg.sender.id)) {
-              acc.push({
-                id: msg.sender.id,
-                first_name: msg.sender.first_name,
-                last_name: msg.sender.last_name
-              });
-            }
-            return acc;
-          }, []);
-          
-
-          setRecentChats(uniqueUsers);
-        } else {
+          if (!messagesError && messagesData && messagesData.length > 0) {
+            // Extract unique users from messages (other than current user), most recent first
+            const userMap: { [id: string]: { user: UserItem; lastMessageTime: string; hasUnread: boolean } } = {};
+            messagesData.forEach((msg: any) => {
+              // If current user is sender, add receiver
+              if (msg.receiver && msg.receiver.id !== currentUser.id) {
+                if (!userMap[msg.receiver.id] || new Date(msg.created_at) > new Date(userMap[msg.receiver.id].lastMessageTime)) {
+                  userMap[msg.receiver.id] = {
+                    user: {
+                      id: msg.receiver.id,
+                      first_name: msg.receiver.first_name,
+                      last_name: msg.receiver.last_name
+                    },
+                    lastMessageTime: msg.created_at,
+                    hasUnread: false
+                  };
+                }
+                // If the message is unread and sent to current user, mark as hasUnread
+                if (msg.unread && msg.receiver.id === currentUser.id) {
+                  userMap[msg.receiver.id].hasUnread = true;
+                }
+              }
+              // If current user is receiver, add sender
+              if (msg.sender && msg.sender.id !== currentUser.id) {
+                if (!userMap[msg.sender.id] || new Date(msg.created_at) > new Date(userMap[msg.sender.id].lastMessageTime)) {
+                  userMap[msg.sender.id] = {
+                    user: {
+                      id: msg.sender.id,
+                      first_name: msg.sender.first_name,
+                      last_name: msg.sender.last_name
+                    },
+                    lastMessageTime: msg.created_at,
+                    hasUnread: false
+                  };
+                }
+                // If the message is unread and sent to current user, mark as hasUnread
+                if (msg.unread && msg.receiver && msg.receiver.id === currentUser.id) {
+                  userMap[msg.sender.id].hasUnread = true;
+                }
+              }
+            });
+            // Sort users by most recent message
+            const uniqueUsers = Object.values(userMap)
+              .sort((a, b) => new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime())
+              .map(entry => ({ ...entry.user, hasUnread: entry.hasUnread }));
+            setRecentChats(uniqueUsers);
+          } else {
+            setRecentChats([]);
+          }
+        } catch (error) {
+          console.error('❌ Error fetching recent chats:', error);
           setRecentChats([]);
         }
-      } catch (error) {
-        console.error('❌ Error fetching recent chats:', error);
-        setRecentChats([]);
-      }
-    };
+      };
 
     fetchRecentChats();
   }, [currentUser.id]);
@@ -474,6 +506,50 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
       });
   }, [currentUser.id]);
 
+  // 1. Add state to track unread counts for each user
+  const [unreadMap, setUnreadMap] = useState<{ [userId: string]: number }>({});
+
+  // 2. Fetch unread counts for each recent chat user
+  useEffect(() => {
+    const fetchUnreadCounts = async () => {
+      if (!recentChats.length) return;
+      const userIds = recentChats.map(u => u.id);
+      const { data, error } = await supabase
+        .from('messages')
+        .select('sender_id, count: id', { count: 'exact', head: false })
+        .eq('receiver_id', currentUser.id)
+        .eq('unread', true)
+        .in('sender_id', userIds);
+      if (!error && data) {
+        const map: { [userId: string]: number } = {};
+        data.forEach((row: any) => {
+          map[row.sender_id] = (map[row.sender_id] || 0) + 1;
+        });
+        setUnreadMap(map);
+      } else {
+        setUnreadMap({});
+      }
+    };
+    fetchUnreadCounts();
+  }, [recentChats, currentUser.id]);
+
+  // 3. When opening a chat, mark messages as read and update unreadMap
+  const handleSelectChat = async (chat: { type: 'user'; id: string; name: string }) => {
+    onSelect(chat);
+    // Mark all messages from this user as read
+    await supabase
+      .from('messages')
+      .update({ unread: false })
+      .eq('sender_id', chat.id)
+      .eq('receiver_id', currentUser.id);
+    setUnreadMap(prev => ({ ...prev, [chat.id]: 0 }));
+    if (refreshUnreadMessages) {
+      refreshUnreadMessages();
+    }
+    // Optimistically update recents so the green dot disappears instantly
+    setRecentChats(prev => prev.map(u => u.id === chat.id ? { ...u, hasUnread: false } : u));
+  };
+
   if (!currentUser) {
     return <LoadingScreen message="Loading user data..." size="sm" />;
   }
@@ -553,7 +629,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
                 {recentChats.map(user => (
                   <button
                     key={user.id}
-                    onClick={() => onSelect({ type: 'user', id: user.id, name: `${user.first_name} ${user.last_name}` })}
+                    onClick={() => handleSelectChat({ type: 'user', id: user.id, name: `${user.first_name} ${user.last_name}` })}
                     className={`w-full flex items-center p-3 rounded-lg transition-all duration-200 hover:bg-green-500/10 ${
                       selectedChat?.type === 'user' && selectedChat.id === user.id 
                         ? 'bg-green-500/20 border border-green-500/30' 
@@ -567,7 +643,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
                       <p className="text-white font-medium text-sm">{user.first_name} {user.last_name}</p>
                       <p className="text-green-400/60 text-xs">Recent chat</p>
                     </div>
-                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                    {(user as any).hasUnread && <div className="w-2 h-2 bg-green-400 rounded-full"></div>}
                   </button>
                 ))}
               </div>
@@ -634,6 +710,7 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
   const [senderMap, setSenderMap] = useState<{ [id: string]: { first_name: string; last_name: string } }>({});
   const [showEmotePicker, setShowEmotePicker] = useState(false);
   const emojiList = ['😀', '😂', '😍', '👍', '🙏', '🎉', '😎', '😢', '🔥', '❤️'];
+  const { refreshUnreadMessages } = useUnreadMessages();
 
   // Fetch chatUser if selectedChat.type === 'user'
   useEffect(() => {
@@ -824,14 +901,22 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
     if (!selectedChat || !input.trim() || !currentUser) return;
 
     try {
-      const newMessage = {
-        sender_id: currentUser.id,
-        content: input.trim(),
-        ...(selectedChat.type === 'user' 
-          ? { receiver_id: selectedChat.id, unread: true }
-          : { group_id: selectedChat.id }
-        ),
-      };
+      let newMessage;
+      if (selectedChat.type === 'user') {
+        newMessage = {
+          sender_id: currentUser.id,
+          receiver_id: selectedChat.id,
+          content: input.trim(),
+          unread: true // Only the receiver gets unread: true
+        };
+      } else {
+        newMessage = {
+          sender_id: currentUser.id,
+          group_id: selectedChat.id,
+          content: input.trim()
+          // No unread for group messages
+        };
+      }
 
       const { data, error } = await supabase
         .from('messages')
@@ -863,21 +948,26 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
     }
   };
 
-  // 2. When opening a chat, mark all messages from the selected user to the current user as unread=false
+  // 2. When opening a chat, mark all messages from the selected user to the current user as read
   React.useEffect(() => {
     if (!selectedChat || !currentUser) return;
     if (selectedChat.type !== 'user') return;
     // Mark all messages from selected user to current user as read
     const markAsRead = async () => {
-      await supabase
+      console.log('[markAsRead] currentUser.id:', currentUser.id, typeof currentUser.id);
+      console.log('[markAsRead] selectedChat.id:', selectedChat.id, typeof selectedChat.id);
+      const { data, error } = await supabase
         .from('messages')
         .update({ unread: false })
-        .eq('sender_id', selectedChat.id)
-        .eq('receiver_id', currentUser.id)
-        .eq('unread', true);
+        .eq('sender_id', String(selectedChat.id))
+        .eq('receiver_id', String(currentUser.id));
+      console.log('[markAsRead] Updated messages:', data, 'Error:', error);
+      setTimeout(() => {
+        refreshUnreadMessages();
+      }, 300);
     };
     markAsRead();
-  }, [selectedChat, currentUser]);
+  }, [selectedChat, currentUser, refreshUnreadMessages]);
 
   // 3. Add a function to fetch the count of unread messages for the current user
   // This function is now at the top-level

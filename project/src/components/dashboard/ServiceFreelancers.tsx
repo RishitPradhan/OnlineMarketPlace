@@ -25,42 +25,55 @@ type FilterOption = 'all' | 'top-rated' | 'under-1000' | 'under-2000' | 'fast-de
 export const ServiceFreelancers: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  // Try to get category from state, then from query param
-  let service = (location.state && (location.state as any).service) || null;
-  let categoryFromQuery = '';
-  if (!service) {
-    const params = new URLSearchParams(location.search);
-    categoryFromQuery = params.get('category') || '';
-    if (categoryFromQuery) {
-      service = { title: categoryFromQuery, category: categoryFromQuery };
+  const service = useMemo(() => {
+    let s = (location.state && (location.state as any).service) || null;
+    let categoryFromQuery = '';
+    if (!s) {
+      const params = new URLSearchParams(location.search);
+      categoryFromQuery = params.get('category') || '';
+      if (categoryFromQuery) {
+        s = { title: categoryFromQuery, category: categoryFromQuery };
+      }
     }
-  }
+    return s;
+  }, [location.state, location.search]);
   // If no category, redirect to browse-services
   React.useEffect(() => {
     if (!service) {
+      setLoading(false);
       navigate('/browse-services');
     }
   }, [service, navigate]);
 
-  const [realServices, setRealServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [services, setServices] = useState<any[]>([]);
 
   // Fetch real services from Supabase for this category
   useEffect(() => {
     async function fetchServices() {
       setLoading(true);
-      let query = supabase
-        .from('services')
-        .select('*, freelancer:freelancerId(id, first_name, last_name, avatar, skills)');
-      if (service?.category) {
-        query = query.ilike('category', `%${service.category}%`);
-      } else if (service?.title) {
-        query = query.ilike('category', `%${service.title}%`);
+      try {
+        let query = supabase.from('services').select('*');
+        if (service?.category) {
+          query = query.ilike('category', `%${service.category}%`);
+        } else if (service?.title) {
+          query = query.ilike('category', `%${service.title}%`);
+        }
+        query = query.eq('isactive', true);
+        console.log('Fetching services for category:', service?.category || service?.title);
+        const { data, error } = await query;
+        console.log('Fetched realServices:', data, 'Error:', error);
+        setServices(data || []);
+        if (error) setError(error.message || 'Failed to fetch services');
+      } catch (err: any) {
+        setError(err.message || 'Unknown error');
+      } finally {
+        setLoading(false);
+        console.log('Set loading to false (finally)');
       }
-      const { data, error } = await query;
-      setRealServices(data || []);
-      setLoading(false);
     }
+    console.log('fetchServices useEffect running, service:', service);
     fetchServices();
   }, [service]);
 
@@ -110,215 +123,217 @@ export const ServiceFreelancers: React.FC = () => {
   const fallbackThumb =
     "data:image/svg+xml,%3Csvg width='400' height='240' xmlns='http://www.w3.org/2000/svg'%3E%3Crect fill='%2310b981' width='400' height='240'/%3E%3Ctext x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='32'%3EGig%3C/text%3E%3C/svg%3E";
 
-  // Service-specific freelancer data
-  const getServiceSpecificFreelancers = (serviceType: string): Freelancer[] => {
-    const serviceData = {
-      'Web Development': {
-        names: ['Alex Chen', 'Sarah Rodriguez', 'Marcus Johnson', 'Emma Thompson', 'David Kim', 'Lisa Wang', 'James Wilson', 'Maria Garcia', 'Robert Lee', 'Anna Smith', 'Michael Brown', 'Jennifer Davis', 'Christopher Miller', 'Amanda Taylor', 'Daniel Anderson', 'Rachel White'],
-        taglines: [
-          'Full-stack developer specializing in modern web applications',
-          'React expert with 5+ years building scalable frontends',
-          'Node.js backend specialist with AWS experience',
-          'Vue.js developer creating beautiful user interfaces',
-          'Python Django developer for robust web solutions',
-          'Angular specialist with enterprise experience',
-          'PHP Laravel developer for custom web applications',
-          'WordPress expert with custom theme development',
-          'MERN stack developer for modern web apps',
-          'Ruby on Rails developer for rapid prototyping',
-          'ASP.NET Core developer for enterprise solutions',
-          'Flutter web developer for cross-platform apps',
-          'GraphQL specialist with Apollo experience',
-          'Microservices architect with Docker expertise',
-          'Progressive Web App developer',
-          'E-commerce specialist with Shopify/Stripe'
-        ],
-        skills: ['React', 'Node.js', 'TypeScript', 'MongoDB', 'PostgreSQL', 'AWS', 'Docker', 'GraphQL', 'Vue.js', 'Angular', 'Python', 'PHP', 'Ruby', 'Flutter', 'Next.js', 'Laravel'],
-        priceRange: { min: 500, max: 5000 }
-      },
-      'Graphic Design': {
-        names: ['Sophie Anderson', 'Carlos Mendez', 'Isabella Park', 'Lucas Thompson', 'Ava Rodriguez', 'Ethan Chen', 'Mia Johnson', 'Noah Williams', 'Zoe Davis', 'Liam Brown', 'Chloe Wilson', 'Mason Taylor', 'Harper Garcia', 'Evelyn Martinez', 'Sebastian Lee', 'Victoria Kim'],
-        taglines: [
-          'Creative designer specializing in brand identity',
-          'UI/UX designer with mobile app expertise',
-          'Logo designer creating memorable brand marks',
-          'Print designer for marketing materials',
-          'Digital illustrator with unique artistic style',
-          'Packaging designer for product presentation',
-          'Social media graphics specialist',
-          'Typography expert with custom font design',
-          'Infographic designer for data visualization',
-          'Web designer with modern aesthetic',
-          'Poster designer for events and promotions',
-          'Icon designer for app interfaces',
-          'Brochure designer for business materials',
-          'T-shirt designer with trendy graphics',
-          'Business card designer with elegant layouts',
-          'Banner designer for digital advertising'
-        ],
-        skills: ['Adobe Illustrator', 'Photoshop', 'InDesign', 'Figma', 'Sketch', 'Canva', 'Typography', 'Color Theory', 'Branding', 'Logo Design', 'UI/UX', 'Print Design', 'Digital Art', 'Vector Graphics', 'Layout Design', 'Icon Design'],
-        priceRange: { min: 300, max: 3000 }
-      },
-      'Digital Marketing': {
-        names: ['Ryan Mitchell', 'Jessica Torres', 'Brandon Lewis', 'Nicole Adams', 'Kevin Patel', 'Amber Foster', 'Tyler Green', 'Hannah Baker', 'Jordan Cooper', 'Lauren Phillips', 'Austin Campbell', 'Kayla Evans', 'Cameron Collins', 'Morgan Stewart', 'Reese Morris', 'Casey Rogers'],
-        taglines: [
-          'SEO specialist driving organic traffic growth',
-          'Social media strategist for brand engagement',
-          'PPC expert optimizing ad campaigns',
-          'Content marketing specialist with storytelling',
-          'Email marketing strategist for conversions',
-          'Influencer marketing coordinator',
-          'Analytics expert with data-driven insights',
-          'Conversion rate optimization specialist',
-          'Local SEO expert for small businesses',
-          'Facebook ads specialist for lead generation',
-          'Google Ads expert with ROI focus',
-          'Content creator for social media',
-          'Marketing automation specialist',
-          'Brand strategist with market research',
-          'Video marketing specialist',
-          'Affiliate marketing coordinator'
-        ],
-        skills: ['SEO', 'Google Ads', 'Facebook Ads', 'Email Marketing', 'Social Media', 'Content Marketing', 'Analytics', 'CRO', 'Marketing Automation', 'Brand Strategy', 'Video Marketing', 'Influencer Marketing', 'Local SEO', 'PPC', 'Market Research', 'Lead Generation'],
-        priceRange: { min: 400, max: 3500 }
-      },
-      'Content Writing': {
-        names: ['Olivia Bennett', 'Nathan Rivera', 'Grace Coleman', 'Isaac Reed', 'Scarlett Ward', 'Leo Cox', 'Luna Richardson', 'Felix Howard', 'Stella Ward', 'Miles Peterson', 'Nova Bailey', 'Atlas Cooper', 'Iris Richardson', 'Phoenix Morgan', 'Sage Coleman', 'River Bennett'],
-        taglines: [
-          'Copywriter specializing in conversion-focused content',
-          'Blog writer with SEO optimization expertise',
-          'Technical writer for complex documentation',
-          'Creative writer for engaging storytelling',
-          'Business writer for professional content',
-          'Product description specialist',
-          'Email copywriter for sales sequences',
-          'Social media content creator',
-          'Whitepaper writer for thought leadership',
-          'Press release specialist',
-          'Script writer for video content',
-          'Case study writer for social proof',
-          'Landing page copywriter',
-          'Newsletter writer for engagement',
-          'Ghostwriter for books and articles',
-          'Academic writer with research expertise'
-        ],
-        skills: ['Copywriting', 'SEO Writing', 'Blog Writing', 'Technical Writing', 'Creative Writing', 'Email Copy', 'Social Media', 'Content Strategy', 'Editing', 'Proofreading', 'Research', 'Storytelling', 'Brand Voice', 'Conversion Copy', 'Ghostwriting', 'Academic Writing'],
-        priceRange: { min: 200, max: 2000 }
-      },
-      'Video Editing': {
-        names: ['Xavier Rodriguez', 'Sofia Martinez', 'Diego Hernandez', 'Valentina Lopez', 'Mateo Gonzalez', 'Camila Perez', 'Adrian Torres', 'Isabella Morales', 'Gabriel Silva', 'Lucia Vargas', 'Rafael Castro', 'Elena Ruiz', 'Javier Mendoza', 'Carmen Ortega', 'Fernando Herrera', 'Rosa Jimenez'],
-        taglines: [
-          'Video editor specializing in cinematic storytelling',
-          'YouTube content editor with viral potential',
-          'Commercial video editor for brand campaigns',
-          'Wedding video editor with emotional storytelling',
-          'Music video editor with creative effects',
-          'Corporate video editor for presentations',
-          'Social media video editor for platforms',
-          'Documentary editor with narrative focus',
-          'Animation video editor with motion graphics',
-          'Product video editor for e-commerce',
-          'Event video editor for live recordings',
-          'Educational video editor for courses',
-          'Promotional video editor for marketing',
-          'Short-form video editor for TikTok/Reels',
-          'Film trailer editor with dramatic impact',
-          'Podcast video editor for YouTube'
-        ],
-        skills: ['Adobe Premiere Pro', 'After Effects', 'Final Cut Pro', 'DaVinci Resolve', 'Motion Graphics', 'Color Grading', 'Sound Design', 'Video Effects', 'Animation', 'Storytelling', 'Cinematography', 'Video Compression', 'Green Screen', 'Video Transitions', 'Audio Sync', 'Video Optimization'],
-        priceRange: { min: 800, max: 8000 }
-      }
-    };
+  // Comment out all dummy data code
+  // const getServiceSpecificFreelancers = (serviceType: string): Freelancer[] => {
+  //   const serviceData = {
+  //     'Web Development': {
+  //       names: ['Alex Chen', 'Sarah Rodriguez', 'Marcus Johnson', 'Emma Thompson', 'David Kim', 'Lisa Wang', 'James Wilson', 'Maria Garcia', 'Robert Lee', 'Anna Smith', 'Michael Brown', 'Jennifer Davis', 'Christopher Miller', 'Amanda Taylor', 'Daniel Anderson', 'Rachel White'],
+  //       taglines: [
+  //         'Full-stack developer specializing in modern web applications',
+  //         'React expert with 5+ years building scalable frontends',
+  //         'Node.js backend specialist with AWS experience',
+  //         'Vue.js developer creating beautiful user interfaces',
+  //         'Python Django developer for robust web solutions',
+  //         'Angular specialist with enterprise experience',
+  //         'PHP Laravel developer for custom web applications',
+  //         'WordPress expert with custom theme development',
+  //         'MERN stack developer for modern web apps',
+  //         'Ruby on Rails developer for rapid prototyping',
+  //         'ASP.NET Core developer for enterprise solutions',
+  //         'Flutter web developer for cross-platform apps',
+  //         'GraphQL specialist with Apollo experience',
+  //         'Microservices architect with Docker expertise',
+  //         'Progressive Web App developer',
+  //         'E-commerce specialist with Shopify/Stripe'
+  //       ],
+  //       skills: ['React', 'Node.js', 'TypeScript', 'MongoDB', 'PostgreSQL', 'AWS', 'Docker', 'GraphQL', 'Vue.js', 'Angular', 'Python', 'PHP', 'Ruby', 'Flutter', 'Next.js', 'Laravel'],
+  //       priceRange: { min: 500, max: 5000 }
+  //     },
+  //     'Graphic Design': {
+  //       names: ['Sophie Anderson', 'Carlos Mendez', 'Isabella Park', 'Lucas Thompson', 'Ava Rodriguez', 'Ethan Chen', 'Mia Johnson', 'Noah Williams', 'Zoe Davis', 'Liam Brown', 'Chloe Wilson', 'Mason Taylor', 'Harper Garcia', 'Evelyn Martinez', 'Sebastian Lee', 'Victoria Kim'],
+  //       taglines: [
+  //         'Creative designer specializing in brand identity',
+  //         'UI/UX designer with mobile app expertise',
+  //         'Logo designer creating memorable brand marks',
+  //         'Print designer for marketing materials',
+  //         'Digital illustrator with unique artistic style',
+  //         'Packaging designer for product presentation',
+  //         'Social media graphics specialist',
+  //         'Typography expert with custom font design',
+  //         'Infographic designer for data visualization',
+  //         'Web designer with modern aesthetic',
+  //         'Poster designer for events and promotions',
+  //         'Icon designer for app interfaces',
+  //         'Brochure designer for business materials',
+  //         'T-shirt designer with trendy graphics',
+  //         'Business card designer with elegant layouts',
+  //         'Banner designer for digital advertising'
+  //       ],
+  //       skills: ['Adobe Illustrator', 'Photoshop', 'InDesign', 'Figma', 'Sketch', 'Canva', 'Typography', 'Color Theory', 'Branding', 'Logo Design', 'UI/UX', 'Print Design', 'Digital Art', 'Vector Graphics', 'Layout Design', 'Icon Design'],
+  //       priceRange: { min: 300, max: 3000 }
+  //     },
+  //     'Digital Marketing': {
+  //       names: ['Ryan Mitchell', 'Jessica Torres', 'Brandon Lewis', 'Nicole Adams', 'Kevin Patel', 'Amber Foster', 'Tyler Green', 'Hannah Baker', 'Jordan Cooper', 'Lauren Phillips', 'Austin Campbell', 'Kayla Evans', 'Cameron Collins', 'Morgan Stewart', 'Reese Morris', 'Casey Rogers'],
+  //       taglines: [
+  //         'SEO specialist driving organic traffic growth',
+  //         'Social media strategist for brand engagement',
+  //         'PPC expert optimizing ad campaigns',
+  //         'Content marketing specialist with storytelling',
+  //         'Email marketing strategist for conversions',
+  //         'Influencer marketing coordinator',
+  //         'Analytics expert with data-driven insights',
+  //         'Conversion rate optimization specialist',
+  //         'Local SEO expert for small businesses',
+  //         'Facebook ads specialist for lead generation',
+  //         'Google Ads expert with ROI focus',
+  //         'Content creator for social media',
+  //         'Marketing automation specialist',
+  //         'Brand strategist with market research',
+  //         'Video marketing specialist',
+  //         'Affiliate marketing coordinator'
+  //       ],
+  //       skills: ['SEO', 'Google Ads', 'Facebook Ads', 'Email Marketing', 'Social Media', 'Content Marketing', 'Analytics', 'CRO', 'Marketing Automation', 'Brand Strategy', 'Video Marketing', 'Influencer Marketing', 'Local SEO', 'PPC', 'Market Research', 'Lead Generation'],
+  //       priceRange: { min: 400, max: 3500 }
+  //     },
+  //     'Content Writing': {
+  //       names: ['Olivia Bennett', 'Nathan Rivera', 'Grace Coleman', 'Isaac Reed', 'Scarlett Ward', 'Leo Cox', 'Luna Richardson', 'Felix Howard', 'Stella Ward', 'Miles Peterson', 'Nova Bailey', 'Atlas Cooper', 'Iris Richardson', 'Phoenix Morgan', 'Sage Coleman', 'River Bennett'],
+  //       taglines: [
+  //         'Copywriter specializing in conversion-focused content',
+  //         'Blog writer with SEO optimization expertise',
+  //         'Technical writer for complex documentation',
+  //         'Creative writer for engaging storytelling',
+  //         'Business writer for professional content',
+  //         'Product description specialist',
+  //         'Email copywriter for sales sequences',
+  //         'Social media content creator',
+  //         'Whitepaper writer for thought leadership',
+  //         'Press release specialist',
+  //         'Script writer for video content',
+  //         'Case study writer for social proof',
+  //         'Landing page copywriter',
+  //         'Newsletter writer for engagement',
+  //         'Ghostwriter for books and articles',
+  //         'Academic writer with research expertise'
+  //       ],
+  //       skills: ['Copywriting', 'SEO Writing', 'Blog Writing', 'Technical Writing', 'Creative Writing', 'Email Copy', 'Social Media', 'Content Strategy', 'Editing', 'Proofreading', 'Research', 'Storytelling', 'Brand Voice', 'Conversion Copy', 'Ghostwriting', 'Academic Writing'],
+  //       priceRange: { min: 200, max: 2000 }
+  //     },
+  //     'Video Editing': {
+  //       names: ['Xavier Rodriguez', 'Sofia Martinez', 'Diego Hernandez', 'Valentina Lopez', 'Mateo Gonzalez', 'Camila Perez', 'Adrian Torres', 'Isabella Morales', 'Gabriel Silva', 'Lucia Vargas', 'Rafael Castro', 'Elena Ruiz', 'Javier Mendoza', 'Carmen Ortega', 'Fernando Herrera', 'Rosa Jimenez'],
+  //       taglines: [
+  //         'Video editor specializing in cinematic storytelling',
+  //         'YouTube content editor with viral potential',
+  //         'Commercial video editor for brand campaigns',
+  //         'Wedding video editor with emotional storytelling',
+  //         'Music video editor with creative effects',
+  //         'Corporate video editor for presentations',
+  //         'Social media video editor for platforms',
+  //         'Documentary editor with narrative focus',
+  //         'Animation video editor with motion graphics',
+  //         'Product video editor for e-commerce',
+  //         'Event video editor for live recordings',
+  //         'Educational video editor for courses',
+  //         'Promotional video editor for marketing',
+  //         'Short-form video editor for TikTok/Reels',
+  //         'Film trailer editor with dramatic impact',
+  //         'Podcast video editor for YouTube'
+  //       ],
+  //       skills: ['Adobe Premiere Pro', 'After Effects', 'Final Cut Pro', 'DaVinci Resolve', 'Motion Graphics', 'Color Grading', 'Sound Design', 'Video Effects', 'Animation', 'Storytelling', 'Cinematography', 'Video Compression', 'Green Screen', 'Video Transitions', 'Audio Sync', 'Video Optimization'],
+  //       priceRange: { min: 800, max: 8000 }
+  //     }
+  //   };
 
-    const serviceInfo = serviceData[serviceType as keyof typeof serviceData] || serviceData['Web Development'];
-    const { names, taglines, skills, priceRange } = serviceInfo;
+  //   const serviceInfo = serviceData[serviceType as keyof typeof serviceData] || serviceData['Web Development'];
+  //   const { names, taglines, skills, priceRange } = serviceInfo;
 
-    const freelancers = Array.from({ length: 24 }).map((_, i) => {
-      const name = names[i % names.length];
-      const tagline = taglines[i % taglines.length];
-      const price = Math.floor(Math.random() * (priceRange.max - priceRange.min + 1)) + priceRange.min;
-      const rating = 4.0 + Math.random() * 1.0;
-      const reviewCount = Math.floor(Math.random() * 500) + 50;
-      const projectCount = Math.floor(Math.random() * 200) + 20;
-      const completionRate = 85 + Math.random() * 15;
-      const responseTime = ['1 hour', '2 hours', '4 hours', '6 hours', '12 hours', '1 day'][Math.floor(Math.random() * 6)];
-      const location = ['New York, USA', 'London, UK', 'Toronto, Canada', 'Sydney, Australia', 'Berlin, Germany', 'Tokyo, Japan', 'Mumbai, India', 'São Paulo, Brazil'][Math.floor(Math.random() * 8)];
+  //   const freelancers = Array.from({ length: 24 }).map((_, i) => {
+  //     const name = names[i % names.length];
+  //     const tagline = taglines[i % taglines.length];
+  //     const price = Math.floor(Math.random() * (priceRange.max - priceRange.min + 1)) + priceRange.min;
+  //     const rating = 4.0 + Math.random() * 1.0;
+  //     const reviewCount = Math.floor(Math.random() * 500) + 50;
+  //     const projectCount = Math.floor(Math.random() * 200) + 20;
+  //     const completionRate = 85 + Math.random() * 15;
+  //     const responseTime = ['1 hour', '2 hours', '4 hours', '6 hours', '12 hours', '1 day'][Math.floor(Math.random() * 6)];
+  //     const location = ['New York, USA', 'London, UK', 'Toronto, Canada', 'Sydney, Australia', 'Berlin, Germany', 'Tokyo, Japan', 'Mumbai, India', 'São Paulo, Brazil'][Math.floor(Math.random() * 8)];
       
-      // Select 3-5 random skills for this freelancer
-      const freelancerSkills = skills.sort(() => 0.5 - Math.random()).slice(0, Math.floor(Math.random() * 3) + 3);
+  //     // Select 3-5 random skills for this freelancer
+  //     const freelancerSkills = skills.sort(() => 0.5 - Math.random()).slice(0, Math.floor(Math.random() * 3) + 3);
       
-      return {
-        id: `${serviceType.toLowerCase().replace(' ', '-')}-${i + 1}`,
-        name,
-        avatar: shuffledAvatars[i % shuffledAvatars.length],
-        rating: Math.round(rating * 10) / 10,
-        reviewCount,
-        price,
-        tagline,
-        workThumb: gigBannerUrl,
-        projectCount,
-        skills: freelancerSkills,
-        location,
-        responseTime,
-        completionRate: Math.round(completionRate)
-      };
-    });
-    // Store in localStorage for profile page access
-    localStorage.setItem('dummyFreelancers', JSON.stringify(freelancers));
-    return freelancers;
-  };
+  //     return {
+  //       id: `${serviceType.toLowerCase().replace(' ', '-')}-${i + 1}`,
+  //       name,
+  //       avatar: shuffledAvatars[i % shuffledAvatars.length],
+  //       rating: Math.round(rating * 10) / 10,
+  //       reviewCount,
+  //       price,
+  //       tagline,
+  //       workThumb: gigBannerUrl,
+  //       projectCount,
+  //       skills: freelancerSkills,
+  //       location,
+  //       responseTime,
+  //       completionRate: Math.round(completionRate)
+  //     };
+  //   });
+  //   // Store in localStorage for profile page access
+  //   localStorage.setItem('dummyFreelancers', JSON.stringify(freelancers));
+  //   return freelancers;
+  // };
 
-  const allFreelancers = getServiceSpecificFreelancers(service?.title || 'Web Development');
+  // const allFreelancers = getServiceSpecificFreelancers(service?.title || 'Web Development');
 
   // Filter and sort freelancers
-  const filteredAndSortedFreelancers = useMemo(() => {
-    let filtered = allFreelancers.filter(freelancer => {
-      // Search filter
-      const matchesSearch = freelancer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           freelancer.tagline.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           freelancer.skills.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()));
+  // const filteredAndSortedFreelancers = useMemo(() => {
+  //   let filtered = allFreelancers.filter(freelancer => {
+  //     // Search filter
+  //     const matchesSearch = freelancer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  //                          freelancer.tagline.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  //                          freelancer.skills.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()));
 
-      if (!matchesSearch) return false;
+  //     if (!matchesSearch) return false;
 
-      // Category filters
-      switch (filterBy) {
-        case 'top-rated':
-          return freelancer.rating >= 4.5;
-        case 'under-1000':
-          return freelancer.price <= 1000;
-        case 'under-2000':
-          return freelancer.price <= 2000;
-        case 'fast-delivery':
-          return freelancer.responseTime.includes('hour') || freelancer.responseTime === '1 day';
-        default:
-          return true;
-      }
-    });
+  //     // Category filters
+  //     switch (filterBy) {
+  //       case 'top-rated':
+  //         return freelancer.rating >= 4.5;
+  //       case 'under-1000':
+  //         return freelancer.price <= 1000;
+  //       case 'under-2000':
+  //         return freelancer.price <= 2000;
+  //       case 'fast-delivery':
+  //         return freelancer.responseTime.includes('hour') || freelancer.responseTime === '1 day';
+  //       default:
+  //         return true;
+  //     }
+  //   });
 
-    // Sort freelancers
-    switch (sortBy) {
-      case 'rating':
-        filtered.sort((a, b) => b.rating - a.rating);
-        break;
-      case 'price-low':
-        filtered.sort((a, b) => a.price - b.price);
-        break;
-      case 'price-high':
-        filtered.sort((a, b) => b.price - a.price);
-        break;
-      case 'reviews':
-        filtered.sort((a, b) => b.reviewCount - a.reviewCount);
-        break;
-      case 'completion':
-        filtered.sort((a, b) => b.completionRate - a.completionRate);
-        break;
-    }
+  //   // Sort freelancers
+  //   switch (sortBy) {
+  //     case 'rating':
+  //       filtered.sort((a, b) => b.rating - a.rating);
+  //       break;
+  //     case 'price-low':
+  //       filtered.sort((a, b) => a.price - b.price);
+  //       break;
+  //     case 'price-high':
+  //       filtered.sort((a, b) => b.price - a.price);
+  //       break;
+  //     case 'reviews':
+  //       filtered.sort((a, b) => b.reviewCount - a.reviewCount);
+  //       break;
+  //     case 'completion':
+  //       filtered.sort((a, b) => b.completionRate - a.completionRate);
+  //       break;
+  //   }
 
-    return filtered;
-  }, [allFreelancers, searchTerm, sortBy, filterBy]);
+  //   return filtered;
+  // }, [allFreelancers, searchTerm, sortBy, filterBy]);
 
-  // Fiverr-style grid: decide which to show
-  const servicesToShow = realServices.length > 0 ? realServices : getServiceSpecificFreelancers(service?.title || 'Web Development');
+  // Only show real services in the grid
+  if (!loading && services.length === 0) {
+    return <div className="text-center py-12 text-green-400">No real services found for this category.</div>;
+  }
 
   const isRealFreelancer = (freelancer: any) => {
     // Heuristic: real freelancers have a UUID id (36 chars, with dashes), dummy have custom ids
@@ -434,7 +449,7 @@ export const ServiceFreelancers: React.FC = () => {
         {/* Results Count */}
         <div className="mb-6">
           <p className="text-green-400">
-            Showing {filteredAndSortedFreelancers.length} of {allFreelancers.length} freelancers
+            Showing {services.length} of {services.length} freelancers
           </p>
         </div>
 
@@ -443,28 +458,36 @@ export const ServiceFreelancers: React.FC = () => {
           <div className="text-center py-12 text-green-400">Loading...</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {servicesToShow.map((service, i) => (
+            {services.map((service, i) => (
               <div
                 key={service.id}
                 className="group bg-white dark:bg-dark-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 cursor-pointer overflow-hidden transform hover:scale-105"
                 onClick={() => {
-                  if (service.freelancer && service.freelancer.id && !service.id.toString().startsWith('web-') && !service.id.toString().startsWith('dummy-')) {
-                    navigate(`/freelancer/${service.freelancer.id}`, { state: { freelancer: service.freelancer, service } });
-                  } else {
-                    const serviceType = (service.category || service?.title || 'Web Development').toLowerCase().replace(/\s+/g, '-');
-                    navigate(`/dummy-freelancer/${service.id}`, { state: { freelancer: service, serviceType } });
+                  if (service.freelancerid) {
+                    navigate(`/freelancer/${service.freelancerid}`, { state: { service } });
                   }
                 }}
               >
                 {/* Gig Image */}
                 <div className="relative">
                   <div className="w-full h-48 overflow-hidden">
-                    <img
-                      src={service.image || service.workThumb || '/gigbanner.webp'}
-                      alt={service.title || service.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = '/gigbanner.webp'; }}
-                    />
+                    {(() => {
+                      let images = [];
+                      if (Array.isArray(service.images) && service.images.length > 0) {
+                        images = service.images;
+                      } else if (service.imageurl) {
+                        images = [service.imageurl];
+                      }
+                      const defaultThumb = '/gigbanner.webp';
+                      return (
+                        <img
+                          src={images[0] || defaultThumb}
+                          alt={service.title || service.name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = defaultThumb; }}
+                        />
+                      );
+                    })()}
                   </div>
                   {/* Avatar overlay */}
                   <div className="absolute -bottom-8 left-4">
@@ -522,7 +545,7 @@ export const ServiceFreelancers: React.FC = () => {
           </div>
         )}
         {/* No results message */}
-        {filteredAndSortedFreelancers.length === 0 && (
+        {!loading && services.length === 0 && (
           <div className="text-center py-12">
             <div className="text-green-400 text-xl font-medium mb-2">No freelancers found</div>
             <p className="text-gray-400">Try adjusting your search or filters</p>

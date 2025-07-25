@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { serviceManagement } from '../../lib/service-management';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Listbox } from '@headlessui/react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
 
 // Replace the categories array with a deduplicated, sorted list from all sources
 const categories = Array.from(new Set([
@@ -45,15 +46,36 @@ export default function ServiceForm({ service, onSuccess, onCancel }: ServiceFor
   // New: images
   const [images, setImages] = useState([service?.imageUrl || '']);
 
+  // Image upload state
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     title: service?.title || '',
     description: service?.description || '',
     category: service?.category || '',
     price: service?.price?.toString() || '',
-    deliveryTime: service?.deliveryTime?.toString() || '',
-    imageUrl: service?.imageUrl || '',
-    tags: service?.tags?.join(', ') || ''
+    deliverytime: service?.deliverytime?.toString() || '', // snake_case
+    imageurl: service?.imageurl || '', // snake_case
+    tags: Array.isArray(service?.tags) ? service.tags.join(', ') : (service?.tags || '')
   });
+
+  useEffect(() => {
+    if (service) {
+      setFormData({
+        title: service.title || '',
+        description: service.description || '',
+        category: service.category || '',
+        price: service.price?.toString() || '',
+        deliverytime: service.deliverytime?.toString() || '',
+        imageurl: service.imageurl || '',
+        tags: Array.isArray(service.tags) ? service.tags.join(', ') : (service.tags || '')
+      });
+      setImages(Array.isArray(service.images) ? service.images : []);
+      setPlans(Array.isArray(service.plans) ? service.plans : []);
+      setFaqs(Array.isArray(service.faqs) ? service.faqs : []);
+    }
+  }, [service]);
 
   const handlePlanChange = (idx: number, field: string, value: string) => {
     setPlans(prev => prev.map((p, i) => i === idx ? { ...p, [field]: value } : p));
@@ -69,38 +91,75 @@ export default function ServiceForm({ service, onSuccess, onCancel }: ServiceFor
   const addImage = () => setImages(prev => [...prev, '']);
   const removeImage = (idx: number) => setImages(prev => prev.filter((_, i) => i !== idx));
 
+  // Handle file upload to Supabase Storage
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!user) {
+      setUploadError('You must be logged in to upload images.');
+      return;
+    }
+    setUploading(true);
+    setUploadError(null);
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.id}_${Date.now()}.${fileExt}`;
+    const filePath = `${fileName}`;
+    const { data, error } = await supabase.storage.from('service-images').upload(filePath, file, { upsert: true });
+    if (error) {
+      setUploadError(error.message);
+      setUploading(false);
+      return;
+    }
+    // Get public URL
+    const { data: publicUrlData } = supabase.storage.from('service-images').getPublicUrl(filePath);
+    if (publicUrlData?.publicUrl) {
+      setImages(prev => [...prev, publicUrlData.publicUrl]);
+    } else {
+      setUploadError('Failed to get public URL');
+    }
+    setUploading(false);
+  };
+
+  // In handleSubmit, ensure the payload uses only snake_case fields
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user) {
+      setError('You must be logged in to create a service.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
+      console.log('Current user:', user);
       const serviceData = {
         title: formData.title,
         description: formData.description,
         category: formData.category,
         price: parseFloat(formData.price),
-        deliveryTime: parseInt(formData.deliveryTime),
-        imageUrl: images[0] || undefined,
+        deliverytime: parseInt(formData.deliverytime),
+        imageurl: images[0] || undefined,
         images: images.filter(Boolean),
         tags: formData.tags.split(',').map((tag: string) => tag.trim()).filter(Boolean),
-        freelancerId: user.id,
-        isActive: true,
+        freelancerid: user.id, // ensure this is set
+        isactive: true,
         plans,
         faqs
       };
+      console.log('Service payload to save:', serviceData);
       const response = service
         ? await serviceManagement.updateService(service.id, serviceData)
         : await serviceManagement.createService(serviceData);
+      console.log('Service save response:', response);
       if (response.success) {
-        // After successful upload, navigate to /service for the selected category
-        navigate('/service', { state: { service: { title: formData.category, category: formData.category } } });
+        navigate(`/service?category=${encodeURIComponent(formData.category)}`);
         if (onSuccess) onSuccess();
       } else {
-        throw new Error(response.error || 'Failed to save service');
+        setError(response.error || 'Failed to save service');
+        console.error('Supabase error:', response.error, response);
       }
     } catch (err: any) {
       setError(err.message);
+      console.error('Service save exception:', err);
     } finally {
       setLoading(false);
     }
@@ -198,24 +257,24 @@ export default function ServiceForm({ service, onSuccess, onCancel }: ServiceFor
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label htmlFor="deliveryTime" className="block text-sm font-bold text-green-900 dark:text-green-200">Delivery Time (days)</label>
+          <label htmlFor="deliverytime" className="block text-sm font-bold text-green-900 dark:text-green-200">Delivery Time (days)</label>
           <Input
-            id="deliveryTime"
+            id="deliverytime"
             type="number"
-            value={formData.deliveryTime}
-            onChange={(e) => handleChange('deliveryTime', e.target.value)}
+            value={formData.deliverytime}
+            onChange={(e) => handleChange('deliverytime', e.target.value)}
             placeholder="1"
             min="1"
             required
           />
         </div>
         <div className="space-y-2">
-          <label htmlFor="imageUrl" className="block text-sm font-bold text-green-900 dark:text-green-200">Image URL</label>
+          <label htmlFor="imageurl" className="block text-sm font-bold text-green-900 dark:text-green-200">Image URL</label>
           <Input
-            id="imageUrl"
+            id="imageurl"
             type="url"
-            value={formData.imageUrl}
-            onChange={(e) => handleChange('imageUrl', e.target.value)}
+            value={formData.imageurl}
+            onChange={(e) => handleChange('imageurl', e.target.value)}
             placeholder="https://example.com/image.jpg"
           />
         </div>
@@ -231,8 +290,10 @@ export default function ServiceForm({ service, onSuccess, onCancel }: ServiceFor
         />
       </div>
 
+      {/* Images Section */}
       <div className="space-y-2">
-        <label className="block text-sm font-bold text-green-900 dark:text-green-200">Gig Images (URLs)</label>
+        <label className="block text-sm font-bold text-green-900 dark:text-green-200">Gig Images</label>
+        {images.length === 0 && <div className="text-gray-400">No images added.</div>}
         {images.map((img, i) => (
           <div key={i} className="flex gap-2 mb-2">
             <Input
@@ -247,48 +308,61 @@ export default function ServiceForm({ service, onSuccess, onCancel }: ServiceFor
           </div>
         ))}
         <Button type="button" variant="outline" onClick={addImage}>+ Add Image</Button>
+        <div className="mt-2">
+          <input type="file" accept="image/*" onChange={handleFileUpload} disabled={uploading} />
+          {uploading && <span className="ml-2 text-green-600">Uploading...</span>}
+          {uploadError && <div className="text-red-600 text-xs mt-1">{uploadError}</div>}
+        </div>
       </div>
+
+      {/* Plans Section */}
       <div className="space-y-2">
         <label className="block text-sm font-bold text-green-900 dark:text-green-200">Plans/Packages</label>
-        {plans.map((plan, i) => (
-          <div key={i} className="border rounded-lg p-4 mb-2">
-            <div className="flex gap-2 mb-2">
+        <div className="border border-green-300 rounded-lg p-4 mb-2 min-h-[120px] bg-white dark:bg-dark-800">
+          {plans.length === 0 && <div className="text-gray-400">No plans added.</div>}
+          {plans.map((plan, i) => (
+            <div key={i} className="mb-4">
+              <div className="flex gap-2 mb-2">
+                <Input
+                  value={plan.name}
+                  onChange={e => handlePlanChange(i, 'name', e.target.value)}
+                  placeholder="Plan Name (e.g., Basic)"
+                  className="w-1/3"
+                />
+                <Input
+                  value={plan.price}
+                  onChange={e => handlePlanChange(i, 'price', e.target.value)}
+                  placeholder="Price"
+                  type="number"
+                  className="w-1/3"
+                />
+                <Input
+                  value={plan.delivery}
+                  onChange={e => handlePlanChange(i, 'delivery', e.target.value)}
+                  placeholder="Delivery (e.g., 3 days)"
+                  className="w-1/3"
+                />
+              </div>
               <Input
-                value={plan.name}
-                onChange={e => handlePlanChange(i, 'name', e.target.value)}
-                placeholder="Plan Name (e.g., Basic)"
-                className="w-1/3"
+                value={plan.desc}
+                onChange={e => handlePlanChange(i, 'desc', e.target.value)}
+                placeholder="Description"
+                className="mb-2"
               />
               <Input
-                value={plan.price}
-                onChange={e => handlePlanChange(i, 'price', e.target.value)}
-                placeholder="Price"
-                type="number"
-                className="w-1/3"
-              />
-              <Input
-                value={plan.delivery}
-                onChange={e => handlePlanChange(i, 'delivery', e.target.value)}
-                placeholder="Delivery (e.g., 3 days)"
-                className="w-1/3"
+                value={plan.features}
+                onChange={e => handlePlanChange(i, 'features', e.target.value)}
+                placeholder="Features (comma separated)"
               />
             </div>
-            <Input
-              value={plan.desc}
-              onChange={e => handlePlanChange(i, 'desc', e.target.value)}
-              placeholder="Description"
-              className="mb-2"
-            />
-            <Input
-              value={plan.features}
-              onChange={e => handlePlanChange(i, 'features', e.target.value)}
-              placeholder="Features (comma separated)"
-            />
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
+
+      {/* FAQs Section */}
       <div className="space-y-2">
         <label className="block text-sm font-bold text-green-900 dark:text-green-200">FAQs</label>
+        {faqs.length === 0 && <div className="text-gray-400">No FAQs added.</div>}
         {faqs.map((faq, i) => (
           <div key={i} className="flex gap-2 mb-2">
             <Input

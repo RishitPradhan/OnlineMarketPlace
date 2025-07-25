@@ -58,7 +58,7 @@ export const serviceManagement = {
     try {
       const { data, error } = await supabase
         .from('services')
-        .select('*, freelancer:freelancerId(id, firstName, lastName, avatar)')
+        .select('*')
         .eq('id', id)
         .single();
 
@@ -86,8 +86,8 @@ export const serviceManagement = {
     try {
       let query = supabase
         .from('services')
-        .select('*, freelancer:freelancerId(id, firstName, lastName, avatar)')
-        .eq('isActive', true);
+        .select('*')
+        .eq('isactive', true);
 
       if (filters?.category) {
         query = query.eq('category', filters.category);
@@ -102,7 +102,7 @@ export const serviceManagement = {
       }
 
       if (filters?.freelancerId) {
-        query = query.eq('freelancerId', filters.freelancerId);
+        query = query.eq('freelancerid', filters.freelancerId);
       }
 
       if (filters?.searchQuery) {
@@ -146,17 +146,28 @@ export const serviceManagement = {
   },
 
   mapServiceFromDB(data: any): Service {
+    // Robustly parse images
+    let images: string[] = [];
+    if (Array.isArray(data.images)) {
+      images = data.images;
+    } else if (typeof data.images === 'string') {
+      try {
+        const parsed = JSON.parse(data.images);
+        if (Array.isArray(parsed)) images = parsed;
+      } catch {}
+    }
     return {
       id: data.id,
-      freelancerId: data.freelancerId,
+      freelancerId: data.freelancerid, // snake_case
       title: data.title,
       description: data.description,
       category: data.category,
       price: data.price,
-      deliveryTime: data.deliveryTime,
-      imageUrl: data.imageUrl,
+      deliveryTime: data.deliverytime, // snake_case
+      imageUrl: data.imageurl, // snake_case
+      images, // always array
       tags: data.tags,
-      isActive: data.isActive,
+      isActive: data.isactive, // snake_case
       createdAt: data.created_at,
       updatedAt: data.updated_at
     };

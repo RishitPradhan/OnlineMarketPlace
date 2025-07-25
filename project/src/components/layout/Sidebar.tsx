@@ -21,6 +21,7 @@ import {
   Bell
 } from 'lucide-react';
 import './scrollbar-hide.css';
+import { useUnreadMessages } from './MainLayout';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -28,9 +29,12 @@ interface SidebarProps {
   user: {
     role: string;
   };
+  refreshUnreadMessages?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps & { unreadMessages?: number; unreadNotifications?: number }> = ({ user, isCollapsed, onToggle, unreadMessages = 0, unreadNotifications = 0 }) => {
+export const Sidebar: React.FC<SidebarProps & { unreadNotifications?: number }> = ({ user, isCollapsed, onToggle, unreadNotifications = 0 }) => {
+  const { unreadMessages, refreshUnreadMessages } = useUnreadMessages();
+  console.log('Sidebar unreadMessages:', unreadMessages);
   const navigate = useNavigate();
   const location = useLocation();
   const allTabs = [
@@ -94,13 +98,6 @@ export const Sidebar: React.FC<SidebarProps & { unreadMessages?: number; unreadN
             .map((tab) => {
               const Icon = tab.icon;
               const isActive = location.pathname === tab.route;
-              // Add badge for messages
-              let badge = null;
-              if (tab.id === 'messages' && unreadMessages > 0) {
-                badge = (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-green-300" style={{ marginLeft: '-10px' }}></span>
-                );
-              }
               return (
                 <button
                   key={tab.id}
@@ -113,19 +110,23 @@ export const Sidebar: React.FC<SidebarProps & { unreadMessages?: number; unreadN
                   `}
                   title={isCollapsed ? tab.label : undefined}
                 >
-                  {badge}
                   <span
                     className={
                       isCollapsed
                         ? ''
                         : ''
                     }
-                >
+                  >
                     <Icon className={`w-6 h-6 min-w-6 min-h-6 ${isCollapsed ? (isActive ? 'text-green-500' : 'group-hover:text-green-700') : 'mr-4'} transition-all duration-300 group-hover:scale-110 dark:group-hover:text-green-400 drop-shadow-neon`} />
                   </span>
-                  <div className={`${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'} transition-all duration-500 flex items-center`}>
-                    <span className="font-medium text-base whitespace-nowrap tracking-wide">{tab.label}</span>
-                  </div>
+                  {!isCollapsed && (
+                    <span className="ml-2 flex items-center relative">
+                      {tab.label}
+                      {tab.id === 'messages' && unreadMessages > 0 && (
+                        <span className="ml-2 w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span>
+                      )}
+                    </span>
+                  )}
                 </button>
               );
             })}
