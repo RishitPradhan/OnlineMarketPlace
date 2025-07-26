@@ -3,22 +3,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Home,
   Layers,
-  BookOpen,
   Hammer,
   ClipboardList,
-  Truck,
   MessageCircle,
-  BarChart2,
-  Star,
-  Wallet,
-  CreditCard,
-  Users,
-  Briefcase,
   User,
-  Settings,
   Zap,
-  ChevronLeft,
-  Bell
+  ChevronLeft
 } from 'lucide-react';
 import './scrollbar-hide.css';
 import { useUnreadMessages } from './MainLayout';
@@ -42,18 +32,8 @@ export const Sidebar: React.FC<SidebarProps & { unreadNotifications?: number }> 
     { id: 'browse', label: 'Browse Services', icon: Layers, route: '/browse-services' },
     { id: 'my-gigs', label: 'My Services', icon: Hammer, route: '/services' },
     { id: 'my-orders', label: 'My Orders', icon: ClipboardList, route: '/my-orders' },
-    { id: 'orders', label: 'Active Orders', icon: Truck, route: '/active-orders' },
     { id: 'messages', label: 'Messages', icon: MessageCircle, route: '/messages' },
-    { id: 'analytics', label: 'Analytics', icon: BarChart2, route: '/analytics' },
-    { id: 'reviews', label: 'Reviews', icon: Star, route: '/reviews' },
-    { id: 'earnings', label: 'Earnings', icon: Wallet, route: '/earnings' },
-    { id: 'payments', label: 'Payments', icon: CreditCard, route: '/payments' },
-    { id: 'users', label: 'Users', icon: Users, route: '/users' },
-    { id: 'gigs', label: 'Gigs', icon: Briefcase, route: '/gigs' },
     { id: 'profile', label: 'Profile', icon: User, route: '/profile-completion' },
-    // Removed notifications and settings
-    // { id: 'notifications', label: 'Notifications', icon: Bell, route: '/notifications' },
-    // { id: 'settings', label: 'Settings', icon: Settings, route: '/settings' },
   ];
 
   return (

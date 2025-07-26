@@ -21,14 +21,6 @@ import { TestAuth } from './components/auth/TestAuth';
 import {
   MyGigsPage,
   MyOrdersPage,
-  ActiveOrdersPage,
-  AnalyticsPage,
-  ReviewsPage,
-  EarningsPage,
-  PaymentsPage,
-  UsersPage,
-  GigsPage,
-  SettingsPage,
   MessagesPage,
   NotificationsPage
 } from './components/pages';
@@ -83,14 +75,6 @@ function App() {
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/my-gigs" element={<MyGigsPage />} />
           <Route path="/my-orders" element={<MyOrdersPage />} />
-          <Route path="/active-orders" element={<ActiveOrdersPage />} />
-          <Route path="/analytics" element={<AnalyticsPage />} />
-          <Route path="/reviews" element={<ReviewsPage />} />
-          <Route path="/earnings" element={<EarningsPage />} />
-          <Route path="/payments" element={<PaymentsPage />} />
-          <Route path="/users" element={<UsersPage />} />
-          <Route path="/gigs" element={<GigsPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/profile-completion" element={<ProfileCompletionPage />} />
           <Route path="/services" element={<ServicesPage />} />
