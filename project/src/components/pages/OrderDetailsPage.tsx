@@ -6,7 +6,7 @@ import { Order, OrderStatus } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
-import { Loader2, ArrowLeft, Clock, CheckCircle, XCircle, AlertTriangle, User, Calendar, DollarSign, FileText } from 'lucide-react';
+import { Loader2, ArrowLeft, Clock, CheckCircle, XCircle, AlertTriangle, User, Calendar, DollarSign, FileText, Play, Pause, MessageCircle, Download } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 
 export default function OrderDetailsPage() {
@@ -18,6 +18,7 @@ export default function OrderDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (id && user) {
@@ -49,10 +50,24 @@ export default function OrderDetailsPage() {
     if (!order) return;
 
     setUpdating(true);
+    setError(null);
+    setSuccessMessage(null);
+    
     try {
       const response = await orderManagement.updateOrderStatus(order.id, newStatus);
       if (response.success) {
         await loadOrder(); // Reload the order to get updated data
+        const statusMessages: Record<OrderStatus, string> = {
+          'pending': 'Order status updated successfully!',
+          'in_progress': 'Order accepted! You are now working on this order.',
+          'completed': 'Order marked as completed! The client will be notified.',
+          'cancelled': 'Order has been cancelled.',
+          'disputed': 'Issue reported. Our support team will review the case.'
+        };
+        setSuccessMessage(statusMessages[newStatus]);
+        
+        // Clear success message after 5 seconds
+        setTimeout(() => setSuccessMessage(null), 5000);
       } else {
         setError(response.error || 'Failed to update order status');
       }
@@ -69,7 +84,7 @@ export default function OrderDetailsPage() {
       case 'completed':
         return <CheckCircle className="h-5 w-5 text-green-600" />;
       case 'in_progress':
-        return <Clock className="h-5 w-5 text-blue-600" />;
+        return <Play className="h-5 w-5 text-blue-600" />;
       case 'pending':
         return <Clock className="h-5 w-5 text-yellow-600" />;
       case 'cancelled':
@@ -96,6 +111,38 @@ export default function OrderDetailsPage() {
       default:
         return 'bg-gray-800 text-gray-100 border-gray-600';
     }
+  };
+
+  const getStatusDescription = (status: OrderStatus, isClient: boolean, isFreelancer: boolean) => {
+    switch (status) {
+      case 'pending':
+        return isClient 
+          ? 'Waiting for freelancer to accept your order'
+          : 'You have a new order to review and accept';
+      case 'in_progress':
+        return isClient
+          ? 'Freelancer is working on your order'
+          : 'You are currently working on this order';
+      case 'completed':
+        return isClient
+          ? 'Order has been completed by the freelancer'
+          : 'You have marked this order as completed';
+      case 'cancelled':
+        return 'This order has been cancelled';
+      case 'disputed':
+        return 'This order is under dispute';
+      default:
+        return '';
+    }
+  };
+
+  const getProgressSteps = (status: OrderStatus) => {
+    const steps = [
+      { key: 'pending', label: 'Order Placed', completed: true },
+      { key: 'in_progress', label: 'In Progress', completed: ['in_progress', 'completed'].includes(status) },
+      { key: 'completed', label: 'Completed', completed: status === 'completed' }
+    ];
+    return steps;
   };
 
   if (!user) {
@@ -176,13 +223,87 @@ export default function OrderDetailsPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2">
           {getStatusIcon(order.status)}
           <Badge className={`${getStatusColor(order.status)} border`}>
             {order.status.replace('_', ' ')}
           </Badge>
         </div>
       </div>
+
+      {/* Progress Indicator */}
+      <Card className="bg-gray-800 border-gray-700 mb-8">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            {getProgressSteps(order.status).map((step, index) => (
+              <div key={step.key} className="flex items-center">
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${
+                  step.completed 
+                    ? 'bg-blue-600 border-blue-600 text-white' 
+                    : 'bg-gray-700 border-gray-600 text-gray-400'
+                }`}>
+                  {step.completed ? (
+                    <CheckCircle className="h-4 w-4" />
+                  ) : (
+                    <span className="text-xs font-medium">{index + 1}</span>
+                  )}
+                </div>
+                <span className={`ml-2 text-sm font-medium ${
+                  step.completed ? 'text-blue-400' : 'text-gray-400'
+                }`}>
+                  {step.label}
+                </span>
+                {index < getProgressSteps(order.status).length - 1 && (
+                  <div className={`w-16 h-0.5 mx-4 ${
+                    step.completed ? 'bg-blue-600' : 'bg-gray-600'
+                  }`} />
+                )}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Success Message */}
+      {successMessage && (
+        <Card className="bg-green-900 border-green-700 mb-8">
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-3">
+              <CheckCircle className="h-5 w-5 text-green-400" />
+              <p className="text-green-200">{successMessage}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Error Message */}
+      {error && (
+        <Card className="bg-red-900 border-red-700 mb-8">
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-3">
+              <AlertTriangle className="h-5 w-5 text-red-400" />
+              <p className="text-red-200">{error}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Status Description */}
+      <Card className="bg-gray-800 border-gray-700 mb-8">
+        <CardContent className="pt-6">
+          <div className="flex items-start space-x-3">
+            {getStatusIcon(order.status)}
+            <div>
+              <h3 className="text-white font-medium mb-1">
+                Current Status: {order.status.replace('_', ' ')}
+              </h3>
+              <p className="text-gray-300">
+                {getStatusDescription(order.status, isClient, isFreelancer)}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Order Details */}
@@ -355,7 +476,8 @@ export default function OrderDetailsPage() {
                       className="w-full bg-green-600 hover:bg-green-700 text-white"
                     >
                       {updating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                      Accept Order
+                      <Play className="h-4 w-4 mr-2" />
+                      Accept & Start Working
                     </Button>
                     <Button
                       variant="outline"
@@ -363,37 +485,124 @@ export default function OrderDetailsPage() {
                       disabled={updating}
                       className="w-full border-gray-600 text-gray-200 hover:bg-gray-700"
                     >
+                      <XCircle className="h-4 w-4 mr-2" />
                       Decline Order
                     </Button>
                   </div>
                 )}
 
                 {isFreelancer && order.status === 'in_progress' && (
-                  <Button
-                    onClick={() => handleStatusChange('completed')}
-                    disabled={updating}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    {updating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    Mark as Completed
-                  </Button>
+                  <div className="space-y-2">
+                    <Button
+                      onClick={() => handleStatusChange('completed')}
+                      disabled={updating}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      {updating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Mark as Completed
+                    </Button>
+                    <p className="text-xs text-gray-400 text-center">
+                      You are currently working on this order
+                    </p>
+                  </div>
+                )}
+
+                {isClient && order.status === 'in_progress' && (
+                  <div className="space-y-2">
+                    <div className="bg-blue-900 border border-blue-700 rounded-lg p-3">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Play className="h-4 w-4 text-blue-400" />
+                        <span className="text-blue-200 font-medium">Work in Progress</span>
+                      </div>
+                      <p className="text-blue-300 text-sm">
+                        The freelancer is currently working on your order. You'll be notified when it's completed.
+                      </p>
+                    </div>
+                  </div>
                 )}
 
                 {isClient && order.status === 'completed' && (
-                  <Button
-                    variant="outline"
-                    onClick={() => handleStatusChange('disputed')}
-                    disabled={updating}
-                    className="w-full border-red-600 text-red-400 hover:bg-red-900"
-                  >
-                    Report Issue
-                  </Button>
+                  <div className="space-y-2">
+                    <div className="bg-green-900 border border-green-700 rounded-lg p-3 mb-3">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <CheckCircle className="h-4 w-4 text-green-400" />
+                        <span className="text-green-200 font-medium">Order Completed!</span>
+                      </div>
+                      <p className="text-green-300 text-sm">
+                        Your order has been completed by the freelancer. Review the work and let us know if you're satisfied.
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleStatusChange('disputed')}
+                      disabled={updating}
+                      className="w-full border-red-600 text-red-400 hover:bg-red-900"
+                    >
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      Report Issue
+                    </Button>
+                  </div>
                 )}
 
-                {order.status === 'pending' && (
-                  <p className="text-sm text-gray-400 text-center">
-                    Waiting for {isClient ? 'freelancer' : 'client'} to take action
-                  </p>
+                {isFreelancer && order.status === 'completed' && (
+                  <div className="bg-green-900 border border-green-700 rounded-lg p-3">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <CheckCircle className="h-4 w-4 text-green-400" />
+                      <span className="text-green-200 font-medium">Order Completed</span>
+                    </div>
+                    <p className="text-green-300 text-sm">
+                      You have successfully completed this order. The client will review your work.
+                    </p>
+                  </div>
+                )}
+
+                {order.status === 'pending' && isClient && (
+                  <div className="bg-yellow-900 border border-yellow-700 rounded-lg p-3">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Clock className="h-4 w-4 text-yellow-400" />
+                      <span className="text-yellow-200 font-medium">Waiting for Response</span>
+                    </div>
+                    <p className="text-yellow-300 text-sm">
+                      Your order is waiting for the freelancer to accept and start working on it.
+                    </p>
+                  </div>
+                )}
+
+                {order.status === 'pending' && isFreelancer && (
+                  <div className="bg-yellow-900 border border-yellow-700 rounded-lg p-3">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Clock className="h-4 w-4 text-yellow-400" />
+                      <span className="text-yellow-200 font-medium">New Order Received</span>
+                    </div>
+                    <p className="text-yellow-300 text-sm">
+                      You have received a new order. Please review the requirements and decide whether to accept it.
+                    </p>
+                  </div>
+                )}
+
+                {order.status === 'cancelled' && (
+                  <div className="bg-red-900 border border-red-700 rounded-lg p-3">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <XCircle className="h-4 w-4 text-red-400" />
+                      <span className="text-red-200 font-medium">Order Cancelled</span>
+                    </div>
+                    <p className="text-red-300 text-sm">
+                      This order has been cancelled and is no longer active.
+                    </p>
+                  </div>
+                )}
+
+                {order.status === 'disputed' && (
+                  <div className="bg-purple-900 border border-purple-700 rounded-lg p-3">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <AlertTriangle className="h-4 w-4 text-purple-400" />
+                      <span className="text-purple-200 font-medium">Order Under Dispute</span>
+                    </div>
+                    <p className="text-purple-300 text-sm">
+                      This order is currently under dispute. Our support team will review the case.
+                    </p>
+                  </div>
                 )}
               </CardContent>
             </Card>
