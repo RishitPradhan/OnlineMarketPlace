@@ -1,57 +1,31 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { paymentManagement } from '@/lib/payment-management';
 import { Payment, PaymentStatus } from '@/types';
-import { Elements } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
-import PaymentForm from '@/components/payments/PaymentForm';
+import SimplePaymentForm from '@/components/payments/SimplePaymentForm';
 import TransactionHistory from '@/components/payments/TransactionHistory';
 import PaymentStats from '@/components/payments/PaymentStats';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { ErrorAlert } from '@/components/ui/error-alert';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
-// Add proper type for payment status filter
-const PaymentStatusValues = ['pending', 'completed', 'failed'] as const;
+// Simple loading and error components
+const LoadingSpinner = () => (
+  <div className="flex justify-center items-center h-32">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+  </div>
+);
 
-// Ensure environment variables are properly typed
-declare global {
-  namespace NodeJS {
-    interface ProcessEnv {
-      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: string;
-      SUPABASE_URL: string;
-      SUPABASE_ANON_KEY: string;
-    }
-  }
-}
-
-// Add proper error boundaries
-const PaymentErrorBoundary = ({ children }: { children: React.ReactNode }) => {
-  const [hasError, setHasError] = useState(false);
-
-  useEffect(() => {
-    const handleError = (error: ErrorEvent) => {
-      console.error('Payment Error:', error);
-      setHasError(true);
-    };
-
-    window.addEventListener('error', handleError);
-    return () => window.removeEventListener('error', handleError);
-  }, []);
-
-  return hasError ? (
-    <ErrorAlert message="Payment system unavailable - please try again later" />
-  ) : (
-    <>{children}</>
-  );
-};
+const ErrorAlert = ({ message }: { message: string }) => (
+  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+    {message}
+  </div>
+);
 
 export default function PaymentsPage() {
   const { user } = useAuth();
@@ -59,27 +33,32 @@ export default function PaymentsPage() {
   const [completedPayments, setCompletedPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
+  const [selectedStatus, setSelectedStatus] = useState<PaymentStatus>('pending');
 
-  useEffect(() => {
-    const loadPayments = async () => {
-      try {
-        setLoading(true);
-        const { data, error } = await paymentManagement.listPayments(user?.id!, 'sent');
-        if (error) throw error;
+  const loadPayments = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await paymentManagement.listPayments(
+        user?.id!, 
+        'sent',
+        selectedStatus
+      );
+      if (error) throw error;
+      
+      if (data) {
         setActivePayments(data.filter(p => p.status === 'pending'));
         setCompletedPayments(data.filter(p => p.status === 'completed'));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load payments');
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load payments');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     if (user?.id) loadPayments();
-  }, [user]);
-
-  if (loading) return <LoadingSpinner />;
-  if (error) return <ErrorAlert message={error} />;
+  }, [user, selectedStatus]);
 
   const getStatusColor = (status: PaymentStatus) => {
     switch (status) {
@@ -102,45 +81,23 @@ export default function PaymentsPage() {
     return <div>Please log in to view payments.</div>;
   }
 
-  // Add state for status filtering
-  const [selectedStatus, setSelectedStatus] = useState<PaymentStatus>('pending');
+  if (loading) return <LoadingSpinner />;
+  if (error) return <ErrorAlert message={error} />;
 
-  // Update payment loading logic with status filter
-  useEffect(() => {
-    const loadPayments = async () => {
-      try {
-        const { data, error } = await paymentManagement.listPayments(
-          user?.id!, 
-          'sent',
-          selectedStatus
-        );
-        if (error) throw error;
-        setActivePayments(data.filter(p => p.status === 'pending'));
-        setCompletedPayments(data.filter(p => p.status === 'completed'));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load payments');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (user?.id) loadPayments();
-  }, [user, selectedStatus]);
-
-  // Add status filter UI
   return (
     <div className="p-6">
       <div className="mb-6 flex gap-4">
-        {PaymentStatusValues.map(status => (
+        {['pending', 'completed', 'failed'].map(status => (
           <Button
             key={status}
-            variant={selectedStatus === status ? 'default' : 'outline'}
-            onClick={() => setSelectedStatus(status)}
+            variant={selectedStatus === status ? 'primary' : 'outline'}
+            onClick={() => setSelectedStatus(status as PaymentStatus)}
           >
             {status}
           </Button>
         ))}
       </div>
+      
       <div className="container mx-auto py-8">
         <h1 className="text-3xl font-bold mb-8">Payments & Transactions</h1>
 
@@ -154,56 +111,48 @@ export default function PaymentsPage() {
           />
         </div>
 
-        <Tabs defaultValue="make-payment" className="w-full">
-          <TabsList className="mb-8">
-            <TabsTrigger value="make-payment">Make Payment</TabsTrigger>
-            <TabsTrigger value="active">Active Payments</TabsTrigger>
-            <TabsTrigger value="history">Payment History</TabsTrigger>
-          </TabsList>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Make Payment Section */}
+          <Card>
+            <CardHeader>
+              <h3 className="text-lg font-semibold">Make a Payment</h3>
+            </CardHeader>
+            <CardContent>
+              <Elements stripe={stripePromise}>
+                <SimplePaymentForm onSuccess={loadPayments} />
+              </Elements>
+            </CardContent>
+          </Card>
 
-          <TabsContent value="make-payment">
-            <Card>
-              <CardHeader>
-                <CardTitle>Make a Payment</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Elements stripe={stripePromise}>
-                  <PaymentForm onSuccess={loadPayments} />
-                </Elements>
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {/* Active Payments Section */}
+          <Card>
+            <CardHeader>
+              <h3 className="text-lg font-semibold">Active Payments</h3>
+            </CardHeader>
+            <CardContent>
+              <TransactionHistory
+                payments={activePayments}
+                getStatusColor={getStatusColor}
+                loading={loading}
+              />
+            </CardContent>
+          </Card>
+        </div>
 
-          <TabsContent value="active">
-            <Card>
-              <CardHeader>
-                <CardTitle>Active Payments</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <TransactionHistory
-                  payments={activePayments}
-                  getStatusColor={getStatusColor}
-                  loading={loading}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="history">
-            <Card>
-              <CardHeader>
-                <CardTitle>Payment History</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <TransactionHistory
-                  payments={completedPayments}
-                  getStatusColor={getStatusColor}
-                  loading={loading}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        {/* Payment History Section */}
+        <Card className="mt-8">
+          <CardHeader>
+            <h3 className="text-lg font-semibold">Payment History</h3>
+          </CardHeader>
+          <CardContent>
+            <TransactionHistory
+              payments={completedPayments}
+              getStatusColor={getStatusColor}
+              loading={loading}
+            />
+          </CardContent>
+        </Card>
       </div>
-    );
+    </div>
+  );
 }

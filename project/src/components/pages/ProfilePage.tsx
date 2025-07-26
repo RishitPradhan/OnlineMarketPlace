@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { simpleAuthService } from '../../lib/simple-auth';
 
 const LOCAL_KEY = 'profileData';
 const LOCAL_SKILLS_KEY = 'skillsData';
@@ -11,6 +12,8 @@ const LOCAL_PORTFOLIO_KEY = 'portfolioProjects';
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const authContext = useAuth();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
@@ -72,8 +75,14 @@ const ProfilePage: React.FC = () => {
       setAvatarUrl(publicUrl);
       // Update user in DB
       await supabase.from('users').update({ avatar: publicUrl }).eq('id', user.id);
-      // Update AuthContext (force reload)
-      window.dispatchEvent(new Event('profile-updated'));
+      // Re-fetch user and update AuthContext
+      const updatedUser = await simpleAuthService.getCurrentUser();
+      if (updatedUser && authContext && typeof authContext === 'object' && 'user' in authContext) {
+        // Directly update the user in AuthContext
+        if (authContext.user && typeof authContext.user === 'object') {
+          authContext.user.avatar = updatedUser.avatar;
+        }
+      }
       setAvatarUploading(false);
     } catch (err: any) {
       setAvatarError(err.message || 'Failed to upload avatar');

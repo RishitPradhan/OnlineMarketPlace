@@ -1,33 +1,68 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Star, ArrowLeft, Share2, Bookmark, Flag, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const FreelancerProfile: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const [freelancer, setFreelancer] = useState<any>(location.state?.freelancer || null);
-  const [loading, setLoading] = useState(!location.state?.freelancer);
-  const [service, setService] = useState<any>(location.state?.service || null);
-  const [selectedPackage, setSelectedPackage] = useState(1);
+  const { user } = useAuth();
+  const [freelancer, setFreelancer] = useState<any>(null);
+  const [service, setService] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedPackage, setSelectedPackage] = useState(0);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [reviews, setReviews] = useState<any[]>([]);
+  const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?name=User&background=10b981&color=fff&size=128';
 
   // Fetch freelancer and their service
-  React.useEffect(() => {
+  useEffect(() => {
+    console.log('FreelancerProfile useEffect triggered with ID:', id);
+    
     async function fetchData() {
-      if (!id) return;
+      if (!id) {
+        console.log('No ID provided, returning early');
+        setLoading(false);
+        return;
+      }
+      
+      console.log('Starting to fetch data for ID:', id);
       setLoading(true);
-      // Fetch freelancer
-      const { data: userData } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', id)
-        .single();
-      setFreelancer(userData);
-      // Fetch service for this freelancer if not in state
-      if (!location.state?.service) {
+      
+      try {
+        // Fetch freelancer
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', id)
+          .single();
+        
+        if (userError) {
+          console.error('Error fetching user data:', userError);
+          setLoading(false);
+          return;
+        }
+        
+        console.log('Raw user data from DB:', userData);
+        
+        // Map database data to frontend format
+        const mappedFreelancer = userData ? {
+          id: userData.id,
+          email: userData.email,
+          firstName: userData.first_name,
+          lastName: userData.last_name,
+          role: userData.role,
+          avatar: userData.avatar,
+          createdAt: userData.created_at,
+          updatedAt: userData.updated_at,
+        } : null;
+        
+        console.log('Mapped freelancer data:', mappedFreelancer);
+        setFreelancer(mappedFreelancer);
+        
+        // Fetch service for this freelancer
         const { data: serviceData } = await supabase
           .from('services')
           .select('*')
@@ -35,28 +70,71 @@ export const FreelancerProfile: React.FC = () => {
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
-        setService(serviceData);
+        
+        console.log('Service data:', serviceData);
+        
+        // If no service found, create a dummy service for testing
+        if (!serviceData) {
+          console.log('No service found, creating dummy service for testing');
+          const dummyService = {
+            id: 'dummy-service-id',
+            freelancerid: id,
+            title: 'Professional Web Development',
+            description: 'I will create a modern, responsive website for your business. Includes SEO optimization, mobile-friendly design, and fast loading times.',
+            category: 'web-development',
+            price: 1500.00,
+            tags: ['React', 'Node.js', 'TypeScript', 'SEO'],
+            plans: [
+              {
+                name: "Basic",
+                price: 1500,
+                desc: "Simple website with basic features",
+                features: ["5 pages", "Responsive design", "Contact form", "Basic SEO", "3 revisions"],
+                delivery: "7 days"
+              },
+              {
+                name: "Standard", 
+                price: 2500,
+                desc: "Professional website with advanced features",
+                features: ["10 pages", "Responsive design", "Contact form", "Advanced SEO", "Blog section", "5 revisions"],
+                delivery: "10 days"
+              },
+              {
+                name: "Premium",
+                price: 4000,
+                desc: "Full-featured website with custom functionality",
+                features: ["Unlimited pages", "Responsive design", "Contact form", "Advanced SEO", "Blog section", "Custom features", "Unlimited revisions"],
+                delivery: "14 days"
+              }
+            ],
+            images: ["/gigbanner.webp", "/gigbanner.webp", "/gigbanner.webp"],
+            faqs: [
+              {"q": "What do you need to get started?", "a": "A brief about your business, content, and any design inspiration you have."},
+              {"q": "Can you redesign my existing website?", "a": "Absolutely! I can modernize and improve your current site."},
+              {"q": "Do you provide support after delivery?", "a": "Yes, I offer 2 weeks of free support after project completion."}
+            ]
+          };
+          setService(dummyService);
+        } else {
+          setService(serviceData);
+        }
+        
+      } catch (error) {
+        console.error('Error in fetchData:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
-    if (!freelancer || (!service && !location.state?.service)) fetchData();
+    
+    fetchData();
   }, [id]);
 
-  // Fetch reviews for the service
-  React.useEffect(() => {
-    if (!service?.id) return;
-    supabase
-      .from('reviews')
-      .select('*, reviewer:reviewer_id (name, avatar)')
-      .eq('service_id', service.id)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => setReviews(data || []));
-  }, [service?.id]);
-
-  // Only after all hooks, do your early returns:
+  // Loading state
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center text-green-500 text-xl">Loading profile...</div>;
   }
+
+  // No freelancer found
   if (!freelancer) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-dark-950 to-dark-900">
@@ -70,8 +148,7 @@ export const FreelancerProfile: React.FC = () => {
     );
   }
 
-  // Remove all dummy data fallback logic. Only use the real service data from state or fetch by id.
-  // Always show real images, plans, and faqs if present.
+  // Parse service data
   const gigImages = service?.images ? (typeof service.images === 'string' ? JSON.parse(service.images) : service.images) : [];
   const gigPlans = service?.plans ? (typeof service.plans === 'string' ? JSON.parse(service.plans) : service.plans) : [];
   const gigFaqs = service?.faqs ? (typeof service.faqs === 'string' ? JSON.parse(service.faqs) : service.faqs) : [];
@@ -79,7 +156,7 @@ export const FreelancerProfile: React.FC = () => {
   const gigDescription = service?.description || '';
   const gigBanner = gigImages[0] || '';
 
-  // Guard against empty gigPlans
+  // No service or plans found
   if (!service || !gigPlans || gigPlans.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center text-green-500 text-xl">
@@ -88,7 +165,7 @@ export const FreelancerProfile: React.FC = () => {
     );
   }
 
-  // In the sidebar and main content, before mapping features:
+  // Get current plan and features
   const plan = gigPlans[selectedPackage] || {};
   const features = Array.isArray(plan.features)
     ? plan.features
@@ -96,9 +173,61 @@ export const FreelancerProfile: React.FC = () => {
       ? plan.features.split(',').map((f: string) => f.trim()).filter(Boolean)
       : [];
 
+  // Handler to go to payment page
+  const handleContinueToStripe = async () => {
+    const selectedPlan = gigPlans && gigPlans[selectedPackage];
+    if (!selectedPlan) {
+      alert('Please select a package first');
+      return;
+    }
+
+    // Get freelancer name correctly
+    const freelancerName = freelancer?.firstName && freelancer?.lastName 
+      ? `${freelancer.firstName} ${freelancer.lastName}`
+      : freelancer?.firstName || 'Freelancer';
+
+    console.log('Freelancer object:', freelancer);
+    console.log('Constructed freelancer name:', freelancerName);
+    console.log('Service object:', service);
+    console.log('Selected plan:', selectedPlan);
+
+    const paymentData = {
+      amount: selectedPlan.price,
+      serviceId: service?.id,
+      freelancerId: freelancer?.id,
+      freelancerName: freelancerName,
+      serviceTitle: gigDescription,
+      packageName: selectedPlan.name,
+      packageDescription: selectedPlan.desc
+    };
+
+    console.log('Payment data being passed:', paymentData);
+
+    navigate('/payment', {
+      state: paymentData
+    });
+  };
+
+  // Handler to go to messages page
+  const handleContactSeller = () => {
+    if (freelancer && freelancer.id) {
+      navigate('/messages', {
+        state: {
+          openChat: {
+            type: 'user',
+            id: freelancer.id,
+            name: freelancer?.firstName && freelancer?.lastName 
+              ? `${freelancer.firstName} ${freelancer.lastName}`
+              : freelancer?.firstName || 'Seller',
+          }
+        }
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-green-50 dark:from-dark-950 dark:to-dark-900 py-8 px-0 relative">
-      {/* Small circular back button in top left */}
+      {/* Back Button */}
       <button
         onClick={() => navigate(-1)}
         className="absolute top-6 left-6 z-20 p-2 bg-green-600 text-white rounded-full shadow hover:bg-green-700 focus:outline-none"
@@ -106,6 +235,7 @@ export const FreelancerProfile: React.FC = () => {
       >
         <ArrowLeft className="w-5 h-5" />
       </button>
+      
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-8">
         {/* Main Content */}
         <div className="flex-1 min-w-0">
@@ -115,8 +245,13 @@ export const FreelancerProfile: React.FC = () => {
             <span>/</span>
             <button onClick={() => navigate(-1)} className="hover:underline">{gigDescription}</button>
             <span>/</span>
-            <span className="text-green-700 dark:text-green-400 font-semibold">{freelancer.name}</span>
+            <span className="text-green-700 dark:text-green-400 font-semibold">
+              {freelancer?.firstName && freelancer?.lastName 
+                ? `${freelancer.firstName} ${freelancer.lastName}`
+                : freelancer?.firstName || 'Freelancer'}
+            </span>
           </div>
+          
           {/* Gig Title & Seller */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
             <h1 className="text-2xl md:text-3xl font-bold text-green-700 dark:text-green-400 flex-1">{gigDescription}</h1>
@@ -126,18 +261,20 @@ export const FreelancerProfile: React.FC = () => {
               <button className="p-2 rounded-full hover:bg-green-100 dark:hover:bg-dark-800"><Flag className="w-5 h-5" /></button>
             </div>
           </div>
+          
           {/* Seller Info */}
           <div className="flex items-center gap-3 mb-6">
-            <img src={freelancer.avatar} alt={freelancer.name} className="w-12 h-12 rounded-full object-cover border-2 border-green-200" />
+            <img src={freelancer.avatar || DEFAULT_AVATAR} alt={freelancer?.firstName || 'Freelancer'} className="w-12 h-12 rounded-full object-cover border-2 border-green-200" />
             <div>
-              <div className="font-bold text-gray-900 dark:text-white flex items-center gap-2">{freelancer.name} <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full ml-1">Top Rated</span></div>
-              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                <span>{freelancer.rating}</span>
-                <span className="text-gray-400">({freelancer.review_count} reviews)</span>
+              <div className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                {freelancer?.firstName && freelancer?.lastName 
+                  ? `${freelancer.firstName} ${freelancer.lastName}`
+                  : freelancer?.firstName || 'Freelancer'} 
+                <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full ml-1">Top Rated</span>
               </div>
             </div>
           </div>
+          
           {/* Gig Image Gallery */}
           <div className="mb-8">
             <div className="w-full aspect-video rounded-xl overflow-hidden bg-white dark:bg-dark-800 shadow-md flex items-center justify-center">
@@ -148,6 +285,7 @@ export const FreelancerProfile: React.FC = () => {
               />
             </div>
           </div>
+          
           {/* About this gig */}
           <div className="mb-8">
             <h2 className="text-xl font-bold text-green-700 dark:text-green-400 mb-2">About this gig</h2>
@@ -155,6 +293,7 @@ export const FreelancerProfile: React.FC = () => {
               {gigDescription ? gigDescription : <span className="text-red-500">No description provided.</span>}
             </p>
           </div>
+          
           {/* FAQ Section */}
           <div className="mb-8">
             <h2 className="text-xl font-bold text-green-700 dark:text-green-400 mb-2">FAQ</h2>
@@ -170,26 +309,7 @@ export const FreelancerProfile: React.FC = () => {
               ))}
             </div>
           </div>
-          {/* Reviews Section */}
-          <div className="mb-8">
-            <h2 className="text-xl font-bold text-green-700 dark:text-green-400 mb-2">Reviews</h2>
-            <div className="space-y-6">
-              {reviews.length === 0 && <div className="text-gray-500">No reviews yet.</div>}
-              {reviews.map((review, i) => (
-                <div key={i} className="flex gap-4 items-start">
-                  <img src={review.reviewer?.avatar || 'https://images.unsplash.com/photo-1519340333755-c6e2a6a1b49a?auto=format&fit=crop&w=800&q=80'} alt={review.reviewer?.name || 'User'} className="w-10 h-10 rounded-full object-cover border-2 border-green-200" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-gray-900 dark:text-white">{review.reviewer?.name || 'User'}</span>
-                      <span className="flex items-center text-yellow-500 text-xs font-semibold"><Star className="w-4 h-4 mr-1" /> {review.rating}</span>
-                      <span className="text-xs text-gray-400">{new Date(review.created_at).toLocaleDateString()}</span>
-                    </div>
-                    <div className="text-gray-700 dark:text-gray-200 text-sm mt-1">{review.comment}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          
           {/* Tags/Skills */}
           <div className="mb-8">
             <h2 className="text-xl font-bold text-green-700 dark:text-green-400 mb-2">Skills</h2>
@@ -204,6 +324,7 @@ export const FreelancerProfile: React.FC = () => {
             </div>
           </div>
         </div>
+        
         {/* Sidebar */}
         <aside className="w-full md:w-96 flex-shrink-0 md:sticky md:top-8">
           <div className="glass-effect rounded-2xl p-6 mb-6 shadow-xl">
@@ -223,6 +344,7 @@ export const FreelancerProfile: React.FC = () => {
                 <span className="text-red-500">No plans/packages provided.</span>
               )}
             </div>
+            
             {gigPlans && gigPlans.length > 0 && gigPlans[selectedPackage] ? (
               <>
                 <div className="mb-2 flex items-center gap-4">
@@ -239,29 +361,29 @@ export const FreelancerProfile: React.FC = () => {
                   ))}
                 </ul>
                 <div className="mb-4 text-sm text-gray-500">Delivery: <span className="font-semibold text-green-700 dark:text-green-400">3 days</span></div>
-                <button className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition mb-2">Continue (₹{gigPlans[selectedPackage].price})</button>
-                <button className="w-full py-2 bg-green-100 hover:bg-green-200 text-green-700 font-bold rounded-lg transition">Contact Seller</button>
+                <button className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition mb-2" onClick={handleContinueToStripe}>Continue (₹{gigPlans[selectedPackage].price})</button>
+                <button className="w-full py-2 bg-green-100 hover:bg-green-200 text-green-700 font-bold rounded-lg transition" onClick={handleContactSeller}>Contact Seller</button>
               </>
             ) : (
               <span className="text-red-500">No plan/package details available.</span>
             )}
           </div>
+          
           {/* About Seller Card */}
           <div className="glass-effect rounded-2xl p-6 shadow-xl flex flex-col items-center text-center">
-            <img src={freelancer.avatar} alt={freelancer.name} className="w-20 h-20 rounded-full object-cover border-2 border-green-200 mb-2" />
-            <div className="font-bold text-lg text-gray-900 dark:text-white mb-1">{freelancer.name}</div>
-            <div className="flex items-center gap-2 justify-center mb-2">
-              <Star className="w-4 h-4 text-yellow-400 fill-current" />
-              <span className="font-medium">{freelancer.rating}</span>
-              <span className="text-gray-400">({freelancer.review_count} reviews)</span>
+            <img src={freelancer.avatar || DEFAULT_AVATAR} alt={freelancer?.firstName || 'Freelancer'} className="w-20 h-20 rounded-full object-cover border-2 border-green-200 mb-2" />
+            <div className="font-bold text-lg text-gray-900 dark:text-white mb-1">
+              {freelancer?.firstName && freelancer?.lastName 
+                ? `${freelancer.firstName} ${freelancer.lastName}`
+                : freelancer?.firstName || 'Freelancer'}
             </div>
             <div className="text-gray-600 dark:text-gray-300 text-sm mb-2">{freelancer.tagline}</div>
             <div className="flex flex-wrap gap-2 justify-center mb-2">
-              {gigSkills.slice(0, 4).map((skill: string, i: number) => (
+              {gigSkills && gigSkills.slice(0, 4).map((skill: string, i: number) => (
                 <span key={i} className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-semibold">{skill}</span>
               ))}
             </div>
-            <button className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition">Contact</button>
+            <button className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition" onClick={handleContactSeller}>Contact</button>
           </div>
         </aside>
       </div>

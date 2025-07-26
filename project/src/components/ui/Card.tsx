@@ -29,6 +29,14 @@ export const CardContent: React.FC<CardProps> = ({ children, className = '' }) =
   );
 };
 
+export const CardTitle: React.FC<CardProps> = ({ children, className = '' }) => {
+  return (
+    <h3 className={`text-lg font-semibold text-white dark:text-white text-green-800 ${className}`}>
+      {children}
+    </h3>
+  );
+};
+
 export const CardFooter: React.FC<CardProps> = ({ children, className = '' }) => {
   return (
     <div className={`px-6 py-4 border-t border-dark-700/50 ${className}`}>

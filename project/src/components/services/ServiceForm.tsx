@@ -113,7 +113,17 @@ export default function ServiceForm({ service, onSuccess, onCancel }: ServiceFor
     // Get public URL
     const { data: publicUrlData } = supabase.storage.from('service-images').getPublicUrl(filePath);
     if (publicUrlData?.publicUrl) {
-      setImages(prev => [...prev, publicUrlData.publicUrl]);
+      setImages(prev => {
+        // Find the first empty slot
+        const emptyIdx = prev.findIndex(img => !img);
+        if (emptyIdx !== -1) {
+          // Replace the first empty slot
+          return prev.map((img, i) => i === emptyIdx ? publicUrlData.publicUrl : img);
+        } else {
+          // Otherwise, append
+          return [...prev, publicUrlData.publicUrl];
+        }
+      });
     } else {
       setUploadError('Failed to get public URL');
     }

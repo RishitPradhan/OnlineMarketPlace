@@ -711,6 +711,7 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
   const [showEmotePicker, setShowEmotePicker] = useState(false);
   const emojiList = ['😀', '😂', '😍', '👍', '🙏', '🎉', '😎', '😢', '🔥', '❤️'];
   const { refreshUnreadMessages } = useUnreadMessages();
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
   // Fetch chatUser if selectedChat.type === 'user'
   useEffect(() => {
@@ -996,7 +997,7 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0 max-h-full" style={{ height: '100%' }}>
       {/* Chat Header */}
       <div className="flex items-center p-4 border-b border-green-500/20 bg-dark-900/30">
         <div
@@ -1032,7 +1033,7 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
       </div>
 
       {/* Messages Area */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 flex flex-col space-y-4">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-dark-900/10 min-h-0 max-h-full">
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <LoadingScreen message="Loading messages..." size="sm" />
@@ -1090,54 +1091,65 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
       </div>
 
       {/* Message Input */}
-      <div className="p-4 border-t border-green-500/20 bg-dark-900/30">
-        <form onSubmit={sendMessage} className="flex items-center space-x-3 relative">
-          {/* Emote Button */}
-          <button
+      <form onSubmit={sendMessage} className="flex items-center p-4 border-t border-green-500/20 bg-dark-900/30 sticky bottom-0 bg-opacity-95 z-10">
+        <button
             type="button"
             className="p-2 text-green-400 hover:text-green-300 transition-colors relative"
             onClick={() => setShowEmotePicker(v => !v)}
             tabIndex={-1}
-          >
-            <span role="img" aria-label="emoji">😊</span>
-          </button>
-          {/* Emoji Picker Popover */}
-          {showEmotePicker && (
-            <div className="absolute bottom-14 left-0 bg-white dark:bg-dark-800 rounded-lg shadow-lg p-2 flex flex-wrap gap-2 z-50">
-              {emojiList.map(emoji => (
-                <button
-                  key={emoji}
-                  type="button"
-                  className="text-2xl p-1 hover:bg-green-100 dark:hover:bg-green-900 rounded transition"
-                  onClick={e => {
-                    e.preventDefault();
-                    setInput(input + emoji);
-                    setShowEmotePicker(false);
-                  }}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          )}
-          <input
-            type="text"
-            placeholder="Type your message..."
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            className="flex-1 px-4 py-3 bg-dark-800/50 border border-green-500/30 rounded-lg text-white placeholder-green-400/60 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-          />
-          <button
-            type="submit"
-            disabled={!input.trim()}
-            className="p-3 bg-green-600 hover:bg-green-700 disabled:bg-green-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-            </svg>
-          </button>
-        </form>
-      </div>
+        >
+          <span role="img" aria-label="emoji">😊</span>
+        </button>
+        {/* Emoji Picker Popover */}
+        {showEmotePicker && (
+          <div className="absolute bottom-14 left-0 bg-white dark:bg-dark-800 rounded-lg shadow-lg p-2 flex flex-wrap gap-2 z-50">
+            {emojiList.map(emoji => (
+              <button
+                key={emoji}
+                type="button"
+                className="text-2xl p-1 hover:bg-green-100 dark:hover:bg-green-900 rounded transition"
+                onClick={e => {
+                  e.preventDefault();
+                  setInput(input + emoji);
+                  setShowEmotePicker(false);
+                  setTimeout(() => {
+                    if (inputRef.current) inputRef.current.focus();
+                  }, 0);
+                }}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        )}
+        <input
+          ref={inputRef}
+          type="text"
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => {
+            console.log('input:', input, 'length:', input.length, 'chars:', Array.from(input), 'valid:', input && /[^\s\u200B-\u200D\uFEFF]/u.test(input));
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              // Allow sending if input contains at least one non-whitespace, non-zero-width character
+              if (input && /[^\s\u200B-\u200D\uFEFF]/u.test(input)) {
+                sendMessage(e);
+              }
+            }
+          }}
+          placeholder="Type your message..."
+          className="flex-1 px-4 py-3 bg-dark-800/50 border border-green-500/30 rounded-lg text-white placeholder-green-400/60 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+        />
+        <button
+          type="submit"
+          disabled={!input || !/[^\s\u200B-\u200D\uFEFF]/u.test(input)}
+          className="p-3 bg-green-600 hover:bg-green-700 disabled:bg-green-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+          </svg>
+        </button>
+      </form>
     </div>
   );
 }

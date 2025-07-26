@@ -11,6 +11,7 @@ interface NavbarProps {
     lastName: string;
     role: string;
     unreadNotifications: number;
+    avatar?: string;
   };
 }
 
@@ -153,9 +154,17 @@ export const Navbar: React.FC<NavbarProps> = ({ user }) => {
               onClick={() => navigate('/profile-completion')}
               aria-label="Go to Profile"
             >
-              <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-neon-green-glow group-hover:scale-105 transition-transform">
-                <User className="w-5 h-5 text-white" />
-              </div>
+              {user.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt="Profile"
+                  className="w-10 h-10 rounded-full object-cover border-2 border-green-400 shadow"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-neon-green-glow group-hover:scale-105 transition-transform">
+                  <User className="w-5 h-5 text-white" />
+                </div>
+              )}
               <div className="hidden md:block text-left">
                 <p className="text-sm font-medium text-gray-900 dark:text-white">
                   {user.firstName} {user.lastName}

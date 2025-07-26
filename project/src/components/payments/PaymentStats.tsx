@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { ArrowUpCircle, Clock, CheckCircle } from 'lucide-react';
 
 interface PaymentStatsProps {
@@ -23,9 +23,9 @@ export default function PaymentStats({
     <>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
+          <h3 className="text-sm font-medium">
             Total Transactions
-          </CardTitle>
+          </h3>
           <ArrowUpCircle className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
@@ -38,9 +38,9 @@ export default function PaymentStats({
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
+          <h3 className="text-sm font-medium">
             Pending Amount
-          </CardTitle>
+          </h3>
           <Clock className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
@@ -55,9 +55,9 @@ export default function PaymentStats({
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
+          <h3 className="text-sm font-medium">
             Completed Amount
-          </CardTitle>
+          </h3>
           <CheckCircle className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>

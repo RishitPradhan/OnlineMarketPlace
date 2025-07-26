@@ -1,25 +1,30 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { orderManagement } from '@/lib/order-management';
-import { Order, OrderStatus } from '@/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Loader2, Clock, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../../contexts/AuthContext';
+import { orderManagement } from '../../../lib/order-management';
+import { Order, OrderStatus } from '../../../types';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
+import { Button } from '../../../components/ui/Button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../../components/ui/tabs';
+import { Badge } from '../../../components/ui/Badge';
+import { Loader2, Clock, CheckCircle, XCircle, AlertTriangle, Eye } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function MyOrdersPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | 'all'>('all');
 
   useEffect(() => {
     if (user) {
+      console.log('MyOrdersPage: User found, loading orders...');
       loadOrders();
+    } else {
+      console.log('MyOrdersPage: No user found');
     }
   }, [user]);
 
@@ -28,14 +33,19 @@ export default function MyOrdersPage() {
 
     setLoading(true);
     try {
+      console.log('Loading orders for user:', user.id, 'role:', user.role);
       const response = await orderManagement.listOrders({
         userId: user.id,
-        role: user.role,
+        role: user.role as 'client' | 'freelancer',
         status: selectedStatus === 'all' ? undefined : selectedStatus
       });
 
-      if (response.success) {
+      console.log('Orders response:', response);
+      if (response.success && response.data) {
         setOrders(response.data);
+        console.log('Orders loaded:', response.data);
+      } else {
+        console.error('Failed to load orders:', response.error);
       }
     } catch (error) {
       console.error('Error loading orders:', error);
@@ -93,6 +103,8 @@ export default function MyOrdersPage() {
     return <div>Please log in to view your orders.</div>;
   }
 
+  console.log('MyOrdersPage: Rendering with orders:', orders.length);
+
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-8">My Orders</h1>
@@ -139,17 +151,20 @@ export default function MyOrdersPage() {
                 <Card key={order.id}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0">
                     <CardTitle className="text-xl">
-                      {order.service?.title}
+                      {order.service?.title || `Order #${order.id.slice(0, 8)}`}
                     </CardTitle>
-                    <Badge
-                      variant="secondary"
-                      className={getStatusColor(order.status)}
-                    >
-                      <span className="flex items-center gap-1">
-                        {getStatusIcon(order.status)}
-                        {order.status.charAt(0).toUpperCase() + order.status.slice(1).replace('_', ' ')}
-                      </span>
-                    </Badge>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/orders/${order.id}`)}
+                        className="flex items-center gap-2"
+                      >
+                        <Eye className="h-4 w-4" />
+                        View Details
+                      </Button>
+
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-2 gap-4">
@@ -159,8 +174,12 @@ export default function MyOrdersPage() {
                         </p>
                         <p className="font-medium">
                           {user.role === 'client'
-                            ? `${order.freelancer?.firstName} ${order.freelancer?.lastName}`
-                            : `${order.client?.firstName} ${order.client?.lastName}`}
+                            ? order.freelancer 
+                              ? `${order.freelancer.firstName} ${order.freelancer.lastName}`
+                              : 'Freelancer'
+                            : order.client
+                              ? `${order.client.firstName} ${order.client.lastName}`
+                              : 'Client'}
                         </p>
                       </div>
                       <div>
@@ -200,7 +219,7 @@ export default function MyOrdersPage() {
                           Accept Order
                         </Button>
                         <Button
-                          variant="destructive"
+                          variant="outline"
                           onClick={() => handleStatusChange(order.id, 'cancelled')}
                         >
                           Decline Order

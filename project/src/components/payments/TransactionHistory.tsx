@@ -1,14 +1,4 @@
 import { Payment, PaymentStatus } from '@/types';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
 
 interface TransactionHistoryProps {
@@ -27,7 +17,7 @@ export default function TransactionHistory({
       <div className="space-y-3">
         {[...Array(5)].map((_, i) => (
           <div key={i} className="flex items-center space-x-4">
-            <Skeleton className="h-12 w-full" />
+            <div className="h-12 w-full bg-gray-200 animate-pulse rounded"></div>
           </div>
         ))}
       </div>
@@ -50,76 +40,64 @@ export default function TransactionHistory({
   };
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Transaction ID</TableHead>
-          <TableHead>Date</TableHead>
-          <TableHead>Amount</TableHead>
-          <TableHead>From</TableHead>
-          <TableHead>To</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Payment Method</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {payments.map((payment) => (
-          <TableRow key={payment.id}>
-            <TableCell className="font-mono">
-              {payment.transactionId || payment.id.slice(0, 8)}
-            </TableCell>
-            <TableCell>
-              {formatDistanceToNow(new Date(payment.createdAt), { addSuffix: true })}
-            </TableCell>
-            <TableCell className="font-medium">
-              {formatAmount(payment.amount)}
-            </TableCell>
-            <TableCell>
-              <div className="flex items-center space-x-2">
-                {payment.payer?.avatar && (
-                  <img
-                    src={payment.payer.avatar}
-                    alt={`${payment.payer.firstName} ${payment.payer.lastName}`}
-                    className="w-6 h-6 rounded-full"
-                  />
-                )}
-                <span>
-                  {payment.payer
-                    ? `${payment.payer.firstName} ${payment.payer.lastName}`
-                    : 'Unknown'}
-                </span>
-              </div>
-            </TableCell>
-            <TableCell>
-              <div className="flex items-center space-x-2">
-                {payment.receiver?.avatar && (
-                  <img
-                    src={payment.receiver.avatar}
-                    alt={`${payment.receiver.firstName} ${payment.receiver.lastName}`}
-                    className="w-6 h-6 rounded-full"
-                  />
-                )}
-                <span>
-                  {payment.receiver
-                    ? `${payment.receiver.firstName} ${payment.receiver.lastName}`
-                    : 'Unknown'}
-                </span>
-              </div>
-            </TableCell>
-            <TableCell>
-              <Badge
-                variant="secondary"
-                className={getStatusColor(payment.status)}
-              >
+    <div className="space-y-4">
+      {payments.map((payment) => (
+        <div key={payment.id} className="border rounded-lg p-4 space-y-2">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="font-mono text-sm text-gray-600">
+                {payment.transactionId || payment.id.slice(0, 8)}
+              </p>
+              <p className="text-sm text-gray-500">
+                {formatDistanceToNow(new Date(payment.createdAt), { addSuffix: true })}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="font-medium text-lg">
+                {formatAmount(payment.amount)}
+              </p>
+              <span className={`inline-block px-2 py-1 text-xs rounded-full ${getStatusColor(payment.status)}`}>
                 {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
-              </Badge>
-            </TableCell>
-            <TableCell className="capitalize">
-              {payment.paymentMethod}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+              </span>
+            </div>
+          </div>
+          
+          <div className="flex justify-between text-sm">
+            <div className="flex items-center space-x-2">
+              {payment.payer?.avatar && (
+                <img
+                  src={payment.payer.avatar}
+                  alt={`${payment.payer.firstName} ${payment.payer.lastName}`}
+                  className="w-6 h-6 rounded-full"
+                />
+              )}
+              <span>
+                From: {payment.payer
+                  ? `${payment.payer.firstName} ${payment.payer.lastName}`
+                  : 'Unknown'}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              {payment.receiver?.avatar && (
+                <img
+                  src={payment.receiver.avatar}
+                  alt={`${payment.receiver.firstName} ${payment.receiver.lastName}`}
+                  className="w-6 h-6 rounded-full"
+                />
+              )}
+              <span>
+                To: {payment.receiver
+                  ? `${payment.receiver.firstName} ${payment.receiver.lastName}`
+                  : 'Unknown'}
+              </span>
+            </div>
+          </div>
+          
+          <div className="text-xs text-gray-500 capitalize">
+            Payment Method: {payment.paymentMethod}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }

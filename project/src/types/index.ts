@@ -52,3 +52,62 @@ export interface Service {
   createdAt: string;
   updatedAt: string;
 }
+
+export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'processing' | 'refunded';
+
+export type OrderStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'disputed';
+
+export interface Order {
+  id: string;
+  serviceId: string;
+  clientId: string;
+  freelancerId: string;
+  status: OrderStatus;
+  requirements: string;
+  deliveryDate: string;
+  amount: number;
+  createdAt: string;
+  updatedAt: string;
+  service?: Service;
+  client?: User;
+  freelancer?: User;
+}
+
+export interface OrderAnalytics {
+  totalOrders: number;
+  activeOrders: number;
+  completedOrders: number;
+  cancelledOrders: number;
+  disputedOrders: number;
+  ordersByStatus: Array<{
+    status: OrderStatus;
+    count: number;
+  }>;
+}
+
+export interface Payment {
+  id: string;
+  orderId: string;
+  payerId: string;
+  receiverId: string;
+  amount: number;
+  paymentMethod: string;
+  status: PaymentStatus;
+  transactionId?: string;
+  paymentDetails?: any;
+  createdAt: string;
+  updatedAt: string;
+  order?: any;
+  payer?: User;
+  receiver?: User;
+}
+
+export interface EarningsSummary {
+  totalEarnings: number;
+  pendingPayments: number;
+  completedPayments: number;
+  monthlyEarnings: Array<{
+    month: string;
+    amount: number;
+  }>;
+}

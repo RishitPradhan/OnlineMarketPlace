@@ -282,6 +282,7 @@ This will show you if your user exists and if email is confirmed.`);
       }
 
       // Ensure user exists in users table for messaging
+      let avatar = undefined;
       try {
         const { data: userData, error: userError } = await supabase
           .from('users')
@@ -289,6 +290,9 @@ This will show you if your user exists and if email is confirmed.`);
           .eq('id', authUser.id)
           .single();
 
+        if (userData && userData.avatar) {
+          avatar = userData.avatar;
+        }
         if (userError || !userData) {
           console.log('User not found in users table, creating entry...');
           const { error: insertError } = await supabase
@@ -321,6 +325,7 @@ This will show you if your user exists and if email is confirmed.`);
         role: authUser.user_metadata?.role || 'client',
         createdAt: authUser.created_at || new Date().toISOString(),
         updatedAt: authUser.updated_at || new Date().toISOString(),
+        avatar: avatar || undefined,
       };
 
       console.log('✅ Current user:', user);

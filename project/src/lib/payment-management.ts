@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import type { ApiResponse } from "../types";
+import type { ApiResponse, Payment, PaymentStatus, EarningsSummary } from "../types";
 import { loadStripe } from '@stripe/stripe-js';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
@@ -8,7 +8,7 @@ export const paymentManagement = {
   async initiatePayment(payment: Omit<Payment, 'id' | 'status' | 'transactionId' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<{ clientSecret: string }>> {
     try {
       // Create a payment intent with Stripe
-      const response = await fetch('/api/create-payment-intent', {
+      const response = await fetch('http://localhost:3001/api/create-payment-intent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -30,8 +30,13 @@ export const paymentManagement = {
       const { data: paymentData, error: dbError } = await supabase
         .from('payments')
         .insert([{
-          ...payment,
+          order_id: payment.orderId,
+          payer_id: payment.payerId,
+          receiver_id: payment.receiverId,
+          amount: payment.amount,
+          payment_method: payment.paymentMethod,
           status: 'pending',
+          payment_details: payment.paymentDetails,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }])
@@ -85,9 +90,9 @@ export const paymentManagement = {
         .from('payments')
         .select(`
           *,
-          order:orderId(*),
-          payer:payerId(id, firstName, lastName, avatar),
-          receiver:receiverId(id, firstName, lastName, avatar)
+          order:order_id(*),
+          payer:payer_id(id, firstName, lastName, avatar),
+          receiver:receiver_id(id, firstName, lastName, avatar)
         `)
         .eq('id', id)
         .single();
@@ -112,11 +117,11 @@ export const paymentManagement = {
         .from('payments')
         .select(`
           *,
-          order:orderId(*),
-          payer:payerId(id, firstName, lastName, avatar),
-          receiver:receiverId(id, firstName, lastName, avatar)
+          order:order_id(*),
+          payer:payer_id(id, firstName, lastName, avatar),
+          receiver:receiver_id(id, firstName, lastName, avatar)
         `)
-        .eq(type === 'sent' ? 'payerId' : 'receiverId', userId);
+        .eq(type === 'sent' ? 'payer_id' : 'receiver_id', userId);
   
       if (status) {
         query = query.eq('status', status);
@@ -142,7 +147,7 @@ export const paymentManagement = {
       const { data: payments, error } = await supabase
         .from('payments')
         .select('amount, status, created_at')
-        .eq('receiverId', userId);
+        .eq('receiver_id', userId);
 
       if (error) throw error;
 
@@ -187,14 +192,14 @@ export const paymentManagement = {
   mapPaymentFromDB(data: any): Payment {
     return {
       id: data.id,
-      orderId: data.orderId,
-      payerId: data.payerId,
-      receiverId: data.receiverId,
+      orderId: data.order_id,
+      payerId: data.payer_id,
+      receiverId: data.receiver_id,
       amount: data.amount,
-      paymentMethod: data.paymentMethod,
+      paymentMethod: data.payment_method,
       status: data.status,
-      transactionId: data.transactionId,
-      paymentDetails: data.paymentDetails,
+      transactionId: data.transaction_id,
+      paymentDetails: data.payment_details,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
       order: data.order,

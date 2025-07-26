@@ -4,9 +4,11 @@ import { ChatSidebar } from '../dashboard/Dashboard'; // Import ChatSidebar
 import { ChatBox } from '../dashboard/Dashboard'; // Import ChatBox
 import { supabase } from '../../lib/supabase';
 import { useUnreadMessages } from '../layout/MainLayout';
+import { useLocation } from 'react-router-dom';
 
 const MessagesPage: React.FC = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const [selectedChat, setSelectedChat] = useState<any>(null);
   const { refreshUnreadMessages } = useUnreadMessages();
 
@@ -21,6 +23,13 @@ const MessagesPage: React.FC = () => {
     };
     markAllAsRead();
   }, [user, refreshUnreadMessages]);
+
+  // Open chat with seller if openChat is passed in location.state
+  useEffect(() => {
+    if (location.state && (location.state as any).openChat) {
+      setSelectedChat((location.state as any).openChat);
+    }
+  }, [location.state]);
 
   if (!user) {
     return (

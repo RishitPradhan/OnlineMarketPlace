@@ -64,7 +64,19 @@ export const ServiceFreelancers: React.FC = () => {
         console.log('Fetching services for category:', service?.category || service?.title);
         const { data, error } = await query;
         console.log('Fetched realServices:', data, 'Error:', error);
-        setServices(data || []);
+        // Fetch freelancer avatars for each service
+        const servicesWithAvatars = await Promise.all((data || []).map(async (svc: any) => {
+          if (svc.freelancerid) {
+            const { data: freelancer } = await supabase
+              .from('users')
+              .select('avatar, first_name')
+              .eq('id', svc.freelancerid)
+              .single();
+            return { ...svc, freelancer: { ...freelancer } };
+          }
+          return svc;
+        }));
+        setServices(servicesWithAvatars);
         if (error) setError(error.message || 'Failed to fetch services');
       } catch (err: any) {
         setError(err.message || 'Unknown error');
