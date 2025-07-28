@@ -6,8 +6,9 @@ import { Order, OrderStatus } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
-import { Loader2, ArrowLeft, Clock, CheckCircle, XCircle, AlertTriangle, User, Calendar, DollarSign, FileText, Play, Pause, MessageCircle, Download } from 'lucide-react';
+import { Loader2, ArrowLeft, Clock, CheckCircle, XCircle, AlertTriangle, User, Calendar, DollarSign, FileText, Play, Pause, MessageCircle, Download, Star, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
+import { supabase } from '../../lib/supabase';
 
 export default function OrderDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +20,15 @@ export default function OrderDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  
+  // Review state
+  const [review, setReview] = useState<{
+    rating: number;
+    comment: string;
+  } | null>(null);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [existingReview, setExistingReview] = useState<any>(null);
 
   useEffect(() => {
     if (id && user) {
@@ -35,6 +45,10 @@ export default function OrderDetailsPage() {
       
       if (response.success && response.data) {
         setOrder(response.data);
+        // Load existing review if order is completed
+        if (response.data.status === 'completed') {
+          await loadExistingReview(response.data.id);
+        }
       } else {
         setError(response.error || 'Failed to load order');
       }
@@ -43,6 +57,60 @@ export default function OrderDetailsPage() {
       setError(error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadExistingReview = async (orderId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('order_id', orderId)
+        .eq('reviewer_id', user?.id)
+        .single();
+
+      if (data && !error) {
+        setExistingReview(data);
+      }
+    } catch (error) {
+      console.error('Error loading review:', error);
+    }
+  };
+
+  const handleSubmitReview = async () => {
+    if (!review || !order || !user) return;
+
+    setSubmittingReview(true);
+    try {
+      // Create review object with only the required fields
+      const reviewData = {
+        order_id: order.id,
+        reviewer_id: user.id,
+        rating: review.rating,
+        comment: review.comment,
+        created_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from('reviews')
+        .insert([reviewData])
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      setExistingReview(data);
+      setShowReviewForm(false);
+      setReview(null);
+      setSuccessMessage('Review submitted successfully!');
+      setTimeout(() => setSuccessMessage(null), 5000);
+    } catch (error: any) {
+      console.error('Error submitting review:', error);
+      setError('Failed to submit review: ' + error.message);
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -382,6 +450,134 @@ export default function OrderDetailsPage() {
                     </div>
                   )}
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Review Section - Only show for completed orders and clients */}
+          {order.status === 'completed' && isClient && (
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader>
+                <CardTitle className="flex items-center text-white">
+                  <MessageSquare className="h-5 w-5 mr-2 text-green-400" />
+                  Review & Feedback
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {existingReview ? (
+                  // Show existing review
+                  <div className="space-y-4">
+                    <div className="bg-green-900/30 border border-green-700 rounded-lg p-4">
+                      <div className="flex items-center space-x-2 mb-3">
+                        <Star className="h-5 w-5 text-yellow-400 fill-current" />
+                        <span className="text-green-200 font-medium">Your Review</span>
+                      </div>
+                      <div className="flex items-center space-x-1 mb-3">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`h-5 w-5 ${
+                              star <= existingReview.rating
+                                ? 'text-yellow-400 fill-current'
+                                : 'text-gray-400'
+                            }`}
+                          />
+                        ))}
+                        <span className="ml-2 text-gray-300">({existingReview.rating}/5)</span>
+                      </div>
+                      <p className="text-gray-200">{existingReview.comment}</p>
+                      <p className="text-gray-400 text-sm mt-2">
+                        Reviewed on {format(new Date(existingReview.created_at), 'PPP')}
+                      </p>
+                    </div>
+                  </div>
+                ) : showReviewForm ? (
+                  // Show review form
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">
+                        Rating
+                      </label>
+                      <div className="flex items-center space-x-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setReview(prev => ({ ...prev!, rating: star }))}
+                            className="focus:outline-none"
+                          >
+                            <Star
+                              className={`h-6 w-6 transition-colors ${
+                                star <= (review?.rating || 0)
+                                  ? 'text-yellow-400 fill-current'
+                                  : 'text-gray-400 hover:text-yellow-300'
+                              }`}
+                            />
+                          </button>
+                        ))}
+                        <span className="ml-2 text-gray-300">
+                          ({review?.rating || 0}/5)
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">
+                        Comment
+                      </label>
+                      <textarea
+                        value={review?.comment || ''}
+                        onChange={(e) => setReview(prev => ({ ...prev!, comment: e.target.value }))}
+                        placeholder="Share your experience with this freelancer..."
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+                        rows={4}
+                      />
+                    </div>
+                    <div className="flex space-x-3">
+                      <Button
+                        onClick={handleSubmitReview}
+                        disabled={!review?.rating || !review?.comment?.trim() || submittingReview}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        {submittingReview ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <MessageSquare className="h-4 w-4 mr-2" />
+                        )}
+                        Submit Review
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setShowReviewForm(false);
+                          setReview(null);
+                        }}
+                        className="border-gray-600 text-gray-200 hover:bg-gray-700"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  // Show review prompt
+                  <div className="text-center py-6">
+                    <div className="w-16 h-16 bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <MessageSquare className="h-8 w-8 text-green-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-white mb-2">
+                      How was your experience?
+                    </h3>
+                    <p className="text-gray-400 mb-4">
+                      Share your feedback to help other clients and improve our platform.
+                    </p>
+                    <Button
+                      onClick={() => setShowReviewForm(true)}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <Star className="h-4 w-4 mr-2" />
+                      Write a Review
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

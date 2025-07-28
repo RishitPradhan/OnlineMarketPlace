@@ -8,6 +8,7 @@ import { Input } from '../ui/Input';
 import { Listbox } from '@headlessui/react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { ProfileCompletionGuard } from '../common/ProfileCompletionGuard';
 
 // Replace the categories array with a deduplicated, sorted list from all sources
 const categories = Array.from(new Set([
@@ -29,7 +30,7 @@ interface ServiceFormProps {
   onCancel: () => void;
 }
 
-export default function ServiceForm({ service, onSuccess, onCancel }: ServiceFormProps) {
+function ServiceFormComponent({ service, onSuccess, onCancel }: ServiceFormProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -411,3 +412,13 @@ export default function ServiceForm({ service, onSuccess, onCancel }: ServiceFor
     </form>
   );
 }
+
+const ServiceForm: React.FC<ServiceFormProps> = (props) => {
+  return (
+    <ProfileCompletionGuard action="create_service">
+      <ServiceFormComponent {...props} />
+    </ProfileCompletionGuard>
+  );
+};
+
+export default ServiceForm;

@@ -71,7 +71,6 @@ function App() {
         {/* MainLayout-wrapped routes */}
         <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/messages" element={<MessagesPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/my-gigs" element={<MyGigsPage />} />
           <Route path="/my-orders" element={<MyOrdersPage />} />
@@ -85,6 +84,9 @@ function App() {
           <Route path="/user/:id" element={<UserProfile />} />
           <Route path="/services/edit/:id" element={<EditServicePage />} />
         </Route>
+        
+        {/* Standalone Messages Route - No MainLayout */}
+        <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
         <Route path="/orders/:id" element={<OrderDetailsPage />} />
         <Route path="/orders/my-orders" element={<MyOrdersPageApp />} />
         <Route path="/freelancer/:id" element={<FreelancerProfile />} />

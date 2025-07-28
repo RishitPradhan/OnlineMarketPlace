@@ -5,12 +5,15 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Outlet } from 'react-router-dom';
 import { fetchUnreadMessageCount } from '../dashboard/Dashboard';
 
+import { useNavigate } from 'react-router-dom';
+
 // Unread messages context
 export const UnreadMessagesContext = createContext<{ unreadMessages: number; refreshUnreadMessages: () => Promise<void> }>({ unreadMessages: 0, refreshUnreadMessages: async () => {} });
 export const useUnreadMessages = () => useContext(UnreadMessagesContext);
 
 const MainLayout: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   console.log('Current user ID:', user?.id);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
@@ -41,6 +44,7 @@ const MainLayout: React.FC = () => {
     <UnreadMessagesContext.Provider value={{ unreadMessages, refreshUnreadMessages }}>
       <div className="h-screen flex flex-col bg-gradient-to-br from-dark-950 to-dark-900 dark:from-dark-950 dark:to-dark-900 from-white to-white">
         <Navbar user={{ ...user, unreadNotifications: unreadMessages }} />
+        
         <div className="flex flex-1 overflow-hidden">
           <Sidebar
             user={user}

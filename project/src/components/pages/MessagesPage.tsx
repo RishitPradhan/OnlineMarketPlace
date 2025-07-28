@@ -46,24 +46,36 @@ const MessagesPage: React.FC = () => {
   };
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-dark-950 to-dark-900 dark:from-dark-950 dark:to-dark-900 from-white to-white">
-      {/* Sidebar */}
-      <div className="w-80 bg-dark-900/50 border-r border-green-500/20 flex flex-col">
-        <div className="p-6 border-b border-green-500/20">
-          <h2 className="text-2xl font-bold text-white mb-2">Messages</h2>
-          <p className="text-green-400 text-sm">Connect with your network</p>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          <ChatSidebar 
-            onSelect={setSelectedChat} 
-            selectedChat={selectedChat} 
-            currentUser={userItem} 
-          />
-        </div>
+    <div className="h-screen flex flex-col bg-gradient-to-br from-dark-950 to-dark-900">
+      {/* Header */}
+      <div className="bg-dark-900/50 border-b border-green-500/20 p-4 flex items-center flex-shrink-0">
+        <button
+          onClick={() => window.history.back()}
+          className="flex items-center text-green-400 hover:text-green-300 transition-colors"
+        >
+          <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back
+        </button>
       </div>
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
-        <ChatBox selectedChat={selectedChat} currentUser={userItem} />
+      
+      {/* Chat Interface */}
+      <div className="flex-1 flex min-h-0">
+        {/* Sidebar */}
+        <div className="w-80 bg-dark-900/50 border-r border-green-500/20 flex flex-col min-h-0">
+          <div className="flex-1 overflow-y-auto">
+            <ChatSidebar 
+              onSelect={setSelectedChat} 
+              selectedChat={selectedChat} 
+              currentUser={userItem} 
+            />
+          </div>
+        </div>
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col min-h-0">
+          <ChatBox selectedChat={selectedChat} currentUser={userItem} showHeader={false} />
+        </div>
       </div>
     </div>
   );

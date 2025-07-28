@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { orderManagement } from '../../lib/order-management';
 import { useAuth } from '../../contexts/AuthContext';
+import { ProfileCompletionGuard } from '../common/ProfileCompletionGuard';
 
 // UPI icon component
 const UPIIcon: React.FC = () => (
@@ -186,4 +187,12 @@ const UPIPaymentPage: React.FC = () => {
   );
 };
 
-export default UPIPaymentPage; 
+const UPIPaymentPageWithGuard: React.FC = () => {
+  return (
+    <ProfileCompletionGuard action="place_order">
+      <UPIPaymentPage />
+    </ProfileCompletionGuard>
+  );
+};
+
+export default UPIPaymentPageWithGuard; 

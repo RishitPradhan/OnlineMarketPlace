@@ -295,52 +295,81 @@ export const ServiceFreelancers: React.FC = () => {
 
   // const allFreelancers = getServiceSpecificFreelancers(service?.title || 'Web Development');
 
-  // Filter and sort freelancers
-  // const filteredAndSortedFreelancers = useMemo(() => {
-  //   let filtered = allFreelancers.filter(freelancer => {
-  //     // Search filter
-  //     const matchesSearch = freelancer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-  //                          freelancer.tagline.toLowerCase().includes(searchTerm.toLowerCase()) ||
-  //                          freelancer.skills.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()));
+  // Filter and sort services
+  const filteredAndSortedServices = useMemo(() => {
+    let filtered = services.filter(service => {
+      // Search filter
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = 
+        (service.title || '').toLowerCase().includes(searchLower) ||
+        (service.description || '').toLowerCase().includes(searchLower) ||
+        (service.freelancer?.first_name || '').toLowerCase().includes(searchLower) ||
+        (service.category || '').toLowerCase().includes(searchLower) ||
+        (service.freelancer?.skills || service.skills || []).some((skill: string) => 
+          skill.toLowerCase().includes(searchLower)
+        );
 
-  //     if (!matchesSearch) return false;
+      if (!matchesSearch) return false;
 
-  //     // Category filters
-  //     switch (filterBy) {
-  //       case 'top-rated':
-  //         return freelancer.rating >= 4.5;
-  //       case 'under-1000':
-  //         return freelancer.price <= 1000;
-  //       case 'under-2000':
-  //         return freelancer.price <= 2000;
-  //       case 'fast-delivery':
-  //         return freelancer.responseTime.includes('hour') || freelancer.responseTime === '1 day';
-  //       default:
-  //         return true;
-  //     }
-  //   });
+      // Category filters
+      switch (filterBy) {
+        case 'top-rated':
+          const rating = parseFloat(service.freelancer?.rating || service.rating || '0');
+          return rating >= 4.5;
+        case 'under-1000':
+          return (service.price || 0) <= 1000;
+        case 'under-2000':
+          return (service.price || 0) <= 2000;
+        case 'fast-delivery':
+          // For real services, we'll assume all are fast delivery for now
+          return true;
+        default:
+          return true;
+      }
+    });
 
-  //   // Sort freelancers
-  //   switch (sortBy) {
-  //     case 'rating':
-  //       filtered.sort((a, b) => b.rating - a.rating);
-  //       break;
-  //     case 'price-low':
-  //       filtered.sort((a, b) => a.price - b.price);
-  //       break;
-  //     case 'price-high':
-  //       filtered.sort((a, b) => b.price - a.price);
-  //       break;
-  //     case 'reviews':
-  //       filtered.sort((a, b) => b.reviewCount - a.reviewCount);
-  //       break;
-  //     case 'completion':
-  //       filtered.sort((a, b) => b.completionRate - a.completionRate);
-  //       break;
-  //   }
+    // Sort services
+    switch (sortBy) {
+      case 'rating':
+        filtered.sort((a, b) => {
+          const ratingA = parseFloat(a.freelancer?.rating || a.rating || '0');
+          const ratingB = parseFloat(b.freelancer?.rating || b.rating || '0');
+          return ratingB - ratingA;
+        });
+        break;
+      case 'price-low':
+        filtered.sort((a, b) => (a.price || 0) - (b.price || 0));
+        break;
+      case 'price-high':
+        filtered.sort((a, b) => (b.price || 0) - (a.price || 0));
+        break;
+      case 'reviews':
+        filtered.sort((a, b) => {
+          const reviewsA = parseInt(a.freelancer?.reviewCount || a.reviewCount || '0');
+          const reviewsB = parseInt(b.freelancer?.reviewCount || b.reviewCount || '0');
+          return reviewsB - reviewsA;
+        });
+        break;
+      case 'completion':
+        filtered.sort((a, b) => {
+          const completionA = parseFloat(a.freelancer?.completionRate || a.completionRate || '0');
+          const completionB = parseFloat(b.freelancer?.completionRate || b.completionRate || '0');
+          return completionB - completionA;
+        });
+        break;
+    }
 
-  //   return filtered;
-  // }, [allFreelancers, searchTerm, sortBy, filterBy]);
+    return filtered;
+  }, [services, searchTerm, sortBy, filterBy]);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('Search term:', searchTerm);
+    console.log('Sort by:', sortBy);
+    console.log('Filter by:', filterBy);
+    console.log('Total services:', services.length);
+    console.log('Filtered services:', filteredAndSortedServices.length);
+  }, [searchTerm, sortBy, filterBy, services.length, filteredAndSortedServices.length]);
 
   // Only show real services in the grid
   if (!loading && services.length === 0) {
@@ -461,7 +490,7 @@ export const ServiceFreelancers: React.FC = () => {
         {/* Results Count */}
         <div className="mb-6">
           <p className="text-green-400">
-            Showing {services.length} of {services.length} freelancers
+            Showing {filteredAndSortedServices.length} of {services.length} freelancers
           </p>
         </div>
 
@@ -470,7 +499,7 @@ export const ServiceFreelancers: React.FC = () => {
           <div className="text-center py-12 text-green-400">Loading...</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {services.map((service, i) => (
+            {filteredAndSortedServices.map((service, i) => (
               <div
                 key={service.id}
                 className="group bg-white dark:bg-dark-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 cursor-pointer overflow-hidden transform hover:scale-105"
@@ -557,10 +586,14 @@ export const ServiceFreelancers: React.FC = () => {
           </div>
         )}
         {/* No results message */}
-        {!loading && services.length === 0 && (
+        {!loading && filteredAndSortedServices.length === 0 && (
           <div className="text-center py-12">
-            <div className="text-green-400 text-xl font-medium mb-2">No freelancers found</div>
-            <p className="text-gray-400">Try adjusting your search or filters</p>
+            <div className="text-green-400 text-xl font-medium mb-2">
+              {services.length === 0 ? 'No freelancers found' : 'No results match your search'}
+            </div>
+            <p className="text-gray-400">
+              {services.length === 0 ? 'No services available for this category' : 'Try adjusting your search or filters'}
+            </p>
           </div>
         )}
       </div>

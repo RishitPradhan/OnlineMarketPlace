@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { orderManagement } from '../../lib/order-management';
 import { useAuth } from '../../contexts/AuthContext';
+import { ProfileCompletionGuard } from '../common/ProfileCompletionGuard';
 
 const CardPaymentPage: React.FC = () => {
   const navigate = useNavigate();
@@ -284,4 +285,12 @@ const CardPaymentPage: React.FC = () => {
   );
 };
 
-export default CardPaymentPage; 
+const CardPaymentPageWithGuard: React.FC = () => {
+  return (
+    <ProfileCompletionGuard action="place_order">
+      <CardPaymentPage />
+    </ProfileCompletionGuard>
+  );
+};
+
+export default CardPaymentPageWithGuard; 

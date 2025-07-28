@@ -10,10 +10,13 @@ app.use(cors());
 app.use(express.json());
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-if (!stripeSecretKey) {
-  throw new Error('STRIPE_SECRET_KEY is not set');
+let stripe = null;
+
+if (stripeSecretKey) {
+  stripe = new Stripe(stripeSecretKey, { apiVersion: '2023-10-16' });
+} else {
+  console.warn('⚠️  STRIPE_SECRET_KEY is not set. Stripe payment features will be disabled.');
 }
-const stripe = new Stripe(stripeSecretKey, { apiVersion: '2023-10-16' });
 
 app.post('/api/create-payment-intent', async (req, res) => {
   try {
@@ -39,6 +42,16 @@ app.post('/api/create-payment-intent', async (req, res) => {
       });
       return res.status(400).json({ error: { message: 'Missing required fields' } });
     }
+
+    // Check if Stripe is configured
+    if (!stripe) {
+      console.log('Stripe not configured, returning mock payment intent');
+      // Return a mock client secret for development
+      const mockClientSecret = 'pi_mock_' + Date.now() + '_secret_' + Math.random().toString(36).substr(2, 9);
+      res.json({ clientSecret: mockClientSecret });
+      return;
+    }
+
     // NOTE: You should validate the order and amount here with your DB if needed.
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents

@@ -22,6 +22,53 @@ A comprehensive Fiverr-like freelance marketplace built with React, TypeScript, 
 - **Icons**: Lucide React
 - **Routing**: React Router DOM
 
+## Backend Server
+
+The backend server provides the following API endpoints:
+
+- `POST /api/create-payment-intent` - Create Stripe payment intents
+- `POST /api/notify-freelancer` - Send notifications to freelancers
+- `POST /api/create-upi-payment` - Handle UPI payments
+
+**Note**: The server will work without Stripe configuration for development purposes, but payment features will be limited.
+
+### Stripe Configuration
+
+To enable real payment processing:
+
+1. **Option 1: Use the provided scripts** (Recommended)
+   ```bash
+   # PowerShell
+   .\start-server-with-stripe.ps1
+   
+   # Windows Batch
+   start-server-with-stripe.bat
+   
+   # npm script
+   npm run server:stripe
+   ```
+
+2. **Option 2: Set environment variables manually**
+   ```bash
+   # PowerShell
+   $env:STRIPE_SECRET_KEY="your_stripe_secret_key"
+   node server.cjs
+   
+   # Windows Command Prompt
+   set STRIPE_SECRET_KEY=your_stripe_secret_key
+   node server.cjs
+   ```
+
+3. **Option 3: Create a .env file**
+   Create a `.env` file in the project root with:
+   ```
+   STRIPE_SECRET_KEY=your_stripe_secret_key
+   PORT=3001
+   NODE_ENV=development
+   ```
+
+**Current Setup**: Your Stripe test key is already configured in the startup scripts.
+
 ## Getting Started
 
 ### Prerequisites
@@ -52,6 +99,22 @@ A comprehensive Fiverr-like freelance marketplace built with React, TypeScript, 
    ```bash
    npm run dev
    ```
+
+6. Start the backend server (in a separate terminal):
+   ```bash
+   # Without Stripe (mock payments):
+   npm run server
+   npm run start:server
+   
+   # With Stripe (real payments):
+   npm run server:stripe
+   
+   # Or use the provided scripts:
+   # Windows: start-server.bat (mock) or start-server-with-stripe.bat (real)
+   # PowerShell: .\start-server.ps1 (mock) or .\start-server-with-stripe.ps1 (real)
+   ```
+
+   The backend server will run on http://localhost:3001
 
 ## Project Structure
 

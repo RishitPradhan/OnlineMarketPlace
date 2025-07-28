@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../ui/Card';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Star, TrendingUp, Users, Award, Clock, DollarSign, MessageCircle, Eye, Heart, Share2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Star, TrendingUp, Users, Award, Clock, DollarSign, MessageCircle, Eye, Heart, Share2, User, AlertTriangle } from 'lucide-react';
+import { useProfileCompletion } from '../common/ProfileCompletionGuard';
 
 const LOCAL_PROFILE_KEY = 'profileData';
 const LOCAL_SKILLS_KEY = 'skillsData';
@@ -122,6 +123,7 @@ export const DashboardOverview: React.FC = () => {
     portfolio: false,
     skills: false
   });
+  const { status } = useProfileCompletion();
 
   // Auto-advance carousel
   useEffect(() => {
@@ -246,6 +248,63 @@ export const DashboardOverview: React.FC = () => {
         </div>
       </div>
 
+      {/* Profile Completion Section - Only show when incomplete */}
+      {!status.isComplete && (
+        <div className="px-6 mb-8">
+          <Card className="glass-effect neon-border p-6 border-l-4 border-l-green-500">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-green-500/20 to-green-600/20 rounded-full flex items-center justify-center">
+                  <User className="w-5 h-5 text-green-400" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Complete Your Profile</h2>
+                  <p className="text-green-400/70 text-sm">Unlock all features by completing your profile</p>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate('/profile-completion')}
+                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium px-6 py-3 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-md"
+              >
+                Complete Now
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-green-400">Progress</span>
+                <span className="text-sm font-semibold text-white">{status.completionPercentage}%</span>
+              </div>
+              <div className="w-full bg-dark-700/50 rounded-full h-3">
+                <div 
+                  className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full transition-all duration-700"
+                  style={{ width: `${status.completionPercentage}%` }}
+                />
+              </div>
+            </div>
+
+            {status.missingFields.length > 0 && (
+              <div>
+                <p className="text-sm text-white mb-3">Missing information:</p>
+                <div className="flex flex-wrap gap-2">
+                  {status.missingFields.slice(0, 6).map((field) => (
+                    <span key={field} className="px-3 py-1 rounded-full text-xs bg-red-500/10 text-red-400 border border-red-500/20 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      {field.replace(/([A-Z])/g, ' $1').trim()}
+                    </span>
+                  ))}
+                  {status.missingFields.length > 6 && (
+                    <span className="px-3 py-1 rounded-full text-xs bg-red-500/10 text-red-400 border border-red-500/20">
+                      +{status.missingFields.length - 6} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
       {/* Platform Stats Section */}
       <div className="px-6 mb-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -314,30 +373,7 @@ export const DashboardOverview: React.FC = () => {
 
         {/* Quick Actions & Profile Section */}
         <div className="space-y-6">
-          {/* Profile Completion Card */}
-          {isNewUser && profileCompletion < 100 && (
-            <Card className="glass-effect neon-border p-6">
-              <h3 className="text-xl font-bold text-white mb-4">Complete Your Profile</h3>
-              <div className="mb-4">
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-green-400">Progress</span>
-                  <span className="text-white">{profileCompletion}%</span>
-                </div>
-                <div className="w-full bg-gray-700 rounded-full h-2">
-                  <div
-                    className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${profileCompletion}%` }}
-                  ></div>
-                </div>
-              </div>
-              <button
-                onClick={() => navigate('/profile-completion')}
-                className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition-all duration-300"
-              >
-                Complete Profile
-              </button>
-            </Card>
-          )}
+
 
           {/* Quick Actions */}
           <Card className="glass-effect neon-border p-6">

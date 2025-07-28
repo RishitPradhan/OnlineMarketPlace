@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { LoadingScreen } from '../ui/LoadingScreen';
 import { useUnreadMessages } from '../layout/MainLayout';
+import { useProfileCompletion } from '../common/ProfileCompletionGuard';
 
 
 // Expanded dummy projects/services
@@ -698,7 +699,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
   );
 };
 
-function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | null; currentUser: UserItem }) {
+function ChatBox({ selectedChat, currentUser, showHeader = true }: { selectedChat: ChatTarget | null; currentUser: UserItem; showHeader?: boolean }) {
   // All hooks at the top
   const [messages, setMessages] = React.useState<any[]>([]);
   const [input, setInput] = React.useState('');
@@ -712,6 +713,7 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
   const emojiList = ['😀', '😂', '😍', '👍', '🙏', '🎉', '😎', '😢', '🔥', '❤️'];
   const { refreshUnreadMessages } = useUnreadMessages();
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const { isActionBlocked, getBlockedMessage } = useProfileCompletion();
 
   // Fetch chatUser if selectedChat.type === 'user'
   useEffect(() => {
@@ -899,7 +901,19 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
   // 1. When sending a message, set unread=true for the receiver
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedChat || !input.trim() || !currentUser) return;
+    console.log('sendMessage called, input:', input, 'selectedChat:', selectedChat);
+    
+    if (!selectedChat || !input || input.trim().length === 0 || !currentUser) {
+      console.log('sendMessage early return - selectedChat:', selectedChat, 'input:', input, 'currentUser:', currentUser);
+      return;
+    }
+
+    // Check if profile is complete before sending message
+    if (isActionBlocked('send_message')) {
+      console.log('Profile not complete, blocking message');
+      alert(getBlockedMessage('send_message'));
+      return;
+    }
 
     try {
       let newMessage;
@@ -980,6 +994,7 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
   if (!currentUser) {
     return <LoadingScreen message="Loading user data..." size="sm" />;
   }
+  
   if (!selectedChat) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -997,43 +1012,45 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0 max-h-full" style={{ height: '100%' }}>
+    <div className="flex flex-col h-full min-h-0">
       {/* Chat Header */}
-      <div className="flex items-center p-4 border-b border-green-500/20 bg-dark-900/30">
-        <div
-          className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm mr-3 ${
-            selectedChat.type === 'user' && chatUser ? getRandomColor(chatUser.id) : 'bg-blue-500'
-          }`}
-          style={{ cursor: selectedChat.type === 'user' ? 'pointer' : 'default' }}
-          onClick={() => {
-            if (selectedChat.type === 'user') {
-              navigate(`/user/${selectedChat.id}`);
-            }
-          }}
-        >
-          {selectedChat.type === 'user' && chatUser
-            ? getInitials((chatUser.first_name || '') + ' ' + (chatUser.last_name || ''))
-            : getInitials(selectedChat.name)}
+      {showHeader && (
+        <div className="flex items-center p-4 border-b border-green-500/20 bg-dark-900/30 flex-shrink-0">
+          <div
+            className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm mr-3 ${
+              selectedChat?.type === 'user' && chatUser ? getRandomColor(chatUser?.id || '') : 'bg-blue-500'
+            }`}
+            style={{ cursor: selectedChat?.type === 'user' ? 'pointer' : 'default' }}
+            onClick={() => {
+              if (selectedChat?.type === 'user') {
+                navigate(`/user/${selectedChat.id}`);
+              }
+            }}
+          >
+            {selectedChat?.type === 'user' && chatUser
+              ? getInitials((chatUser?.first_name || '') + ' ' + (chatUser?.last_name || ''))
+              : getInitials(selectedChat?.name || '')}
+          </div>
+          <div
+            className="flex-1"
+            style={{ cursor: selectedChat?.type === 'user' ? 'pointer' : 'default' }}
+            onClick={() => {
+              if (selectedChat?.type === 'user') {
+                navigate(`/user/${selectedChat.id}`);
+              }
+            }}
+          >
+            <h3 className="text-white font-semibold">{selectedChat?.name}</h3>
+            <p className="text-green-400/60 text-sm">
+              {selectedChat?.type === 'user' ? 'Online' : 'Group'}
+            </p>
+          </div>
+          {/* Removed call and video call icons */}
         </div>
-        <div
-          className="flex-1"
-          style={{ cursor: selectedChat.type === 'user' ? 'pointer' : 'default' }}
-          onClick={() => {
-            if (selectedChat.type === 'user') {
-              navigate(`/user/${selectedChat.id}`);
-            }
-          }}
-        >
-          <h3 className="text-white font-semibold">{selectedChat.name}</h3>
-          <p className="text-green-400/60 text-sm">
-            {selectedChat.type === 'user' ? 'Online' : 'Group'}
-          </p>
-        </div>
-        {/* Removed call and video call icons */}
-      </div>
+      )}
 
       {/* Messages Area */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-dark-900/10 min-h-0 max-h-full">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-dark-900/10 min-h-0">
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <LoadingScreen message="Loading messages..." size="sm" />
@@ -1091,7 +1108,7 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
       </div>
 
       {/* Message Input */}
-      <form onSubmit={sendMessage} className="flex items-center p-4 border-t border-green-500/20 bg-dark-900/30 sticky bottom-0 bg-opacity-95 z-10">
+      <form onSubmit={sendMessage} className="flex items-center p-4 border-t border-green-500/20 bg-dark-900/30 flex-shrink-0">
         <button
             type="button"
             className="p-2 text-green-400 hover:text-green-300 transition-colors relative"
@@ -1128,12 +1145,14 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => {
-            console.log('input:', input, 'length:', input.length, 'chars:', Array.from(input), 'valid:', input && /[^\s\u200B-\u200D\uFEFF]/u.test(input));
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
-              // Allow sending if input contains at least one non-whitespace, non-zero-width character
-              if (input && /[^\s\u200B-\u200D\uFEFF]/u.test(input)) {
+              console.log('Enter pressed, input:', input, 'trimmed length:', input.trim().length);
+              if (input && input.trim().length > 0) {
+                console.log('Calling sendMessage from onKeyDown');
                 sendMessage(e);
+              } else {
+                console.log('Input validation failed in onKeyDown');
               }
             }
           }}
@@ -1142,7 +1161,7 @@ function ChatBox({ selectedChat, currentUser }: { selectedChat: ChatTarget | nul
         />
         <button
           type="submit"
-          disabled={!input || !/[^\s\u200B-\u200D\uFEFF]/u.test(input)}
+          disabled={!input || input.trim().length === 0}
           className="p-3 bg-green-600 hover:bg-green-700 disabled:bg-green-600/50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1158,10 +1177,8 @@ export { ChatSidebar };
 export { ChatBox };
 
 export const Dashboard: React.FC = () => {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [selectedChat, setSelectedChat] = useState<ChatTarget | null>(null);
 
   // If user is not loaded, show a message and a Sign In button
   if (!user) {
@@ -1182,6 +1199,8 @@ export const Dashboard: React.FC = () => {
     <DashboardOverview />
   );
 };
+
+
 
 export async function fetchUnreadMessageCount(userId: string) {
   const { count, error } = await supabase
