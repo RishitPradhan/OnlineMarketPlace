@@ -1,5 +1,6 @@
 Write-Host "Setting up Stripe environment..." -ForegroundColor Green
-$env:STRIPE_SECRET_KEY="REMOVED"
+# Stripe secret key removed for security compliance
+# $env:STRIPE_SECRET_KEY = "sk_test_..." (REMOVED)
 $env:PORT="3001"
 $env:NODE_ENV="development"
 
