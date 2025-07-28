@@ -1,7 +1,7 @@
 @echo off
 echo Setting up Stripe environment...
 REM Stripe secret key removed for security compliance
-REM set STRIPE_SECRET_KEY=REMOVED
+REM set STRIPE_SECRET_KEY=YOUR_STRIPE_SECRET_KEY_HERE
 set PORT=3001
 set NODE_ENV=development
 
