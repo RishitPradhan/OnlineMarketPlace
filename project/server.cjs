@@ -16,8 +16,12 @@ app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
 app.use(express.json());
 
 // Initialize Supabase client
-const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://yibfobsxadyhmurcynrx.supabase.co';
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpYmZvYnN4YWR5aG11cmN5bnJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE4MDUxMTAsImV4cCI6MjA2NzM4MTExMH0.HPhNXbaR7jgdcYk2iezll7M7RLIdZgeg6lG2sXakdq4';
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn('⚠️ Supabase environment variables not found. Some features may not work.');
+}
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -289,7 +293,12 @@ app.post('/api/upi-payment', async (req, res) => {
   }
 });
 
-// Start the server
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+// Start the server (only in development)
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+  });
+}
+
+// Export for Vercel
+module.exports = app;

@@ -14,12 +14,20 @@
   "routes": [
     { 
       "src": "/api/(.*)", 
-      "dest": "server.cjs" 
+      "dest": "/server.cjs" 
     },
     { "src": "/assets/(.*)", "dest": "/assets/$1" },
     { "src": "/favicon.ico", "dest": "/favicon.ico" },
     { "src": "/manifest.json", "dest": "/manifest.json" },
     { "src": "/robots.txt", "dest": "/robots.txt" },
     { "src": "/(.*)", "dest": "/index.html" }
-  ]
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "functions": {
+    "server.cjs": {
+      "maxDuration": 30
+    }
+  }
 }
