@@ -119,6 +119,8 @@ export const AuthCarousel: React.FC<AuthCarouselProps> = ({ type }) => {
 
   return (
     <div className="relative h-full w-full overflow-hidden">
+      {/* Background Gradient */}
+      <div className="absolute inset-0 z-0 bg-gradient-to-br from-emerald-600 via-green-500 to-emerald-800 opacity-90" />
       {/* Welcome Text Overlay */}
       <div className="absolute top-8 left-8 right-8 text-center z-20">
         <div className="inline-flex items-center space-x-2 bg-white/5 backdrop-blur-sm rounded-full px-4 py-2 mb-4 border border-white/10">
@@ -134,7 +136,7 @@ export const AuthCarousel: React.FC<AuthCarouselProps> = ({ type }) => {
       </div>
 
       {/* Slides */}
-      <div className="relative h-full w-full pt-32">
+      <div className="relative h-full w-full pt-32 z-10">
         {slides.map((slide, index) => (
           <div
             key={slide.id}
