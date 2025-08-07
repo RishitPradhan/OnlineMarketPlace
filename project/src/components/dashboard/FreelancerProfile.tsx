@@ -312,7 +312,7 @@ export const FreelancerProfile: React.FC = () => {
   const features = Array.isArray(plan.features) ? plan.features : [];
 
   // Handlers
-  const handleContinueToStripe = async () => {
+  const handleContinueToPayment = async () => {
     const selectedPlan = finalGigPlans && finalGigPlans[selectedPackage];
     if (!selectedPlan) {
       alert('Please select a package first');
@@ -980,7 +980,7 @@ export const FreelancerProfile: React.FC = () => {
                   ))}
                 </ul>
                 <div className="mb-4 text-sm text-gray-500">Delivery: <span className="font-semibold text-green-700 dark:text-green-400">{finalGigPlans[selectedPackage].delivery || '3 days'}</span></div>
-                <button className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition mb-2" onClick={handleContinueToStripe}>Continue (₹{finalGigPlans[selectedPackage].price})</button>
+                <button className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition mb-2" onClick={handleContinueToPayment}>Continue (₹{finalGigPlans[selectedPackage].price})</button>
                 <button className="w-full py-2 bg-green-100 hover:bg-green-200 text-green-700 font-bold rounded-lg transition" onClick={handleContactSeller}>Contact Seller</button>
               </>
             ) : (

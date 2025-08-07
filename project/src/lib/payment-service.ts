@@ -1,149 +1,130 @@
 import { supabase } from './supabase';
-import { loadStripe } from '@stripe/stripe-js';
-import type { PaymentMethod, PaymentStatus } from '../types';
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY!);
-
-export interface PaymentDetails {
-  orderId: string;
-  amount: number;
-  paymentMethod: PaymentMethod;
-  payerId: string;
-  receiverId: string;
+export interface PaymentMethod {
+  id: string;
+  type: 'upi' | 'wallet';
+  upiId?: string;
+  walletType?: string;
 }
 
 export interface PaymentResult {
   success: boolean;
   paymentId?: string;
-  transactionId?: string;
   error?: string;
-  status: PaymentStatus;
 }
 
-export const paymentService = {
-  async initializePayment(details: PaymentDetails): Promise<PaymentResult> {
-    try {
-      const stripe = await stripePromise;
-      if (!stripe) throw new Error('Stripe failed to initialize');
-      // Add error boundary for missing Stripe elements
-      const { error: supabaseError } = await supabase
-        .from('payments')
-        .insert({
-          order_id: details.orderId,
-          payer_id: details.payerId,
-          receiver_id: details.receiverId,
-          amount: details.amount,
-          payment_method: details.paymentMethod,
-          status: 'pending',
-          payment_details: {}
-        })
-        .select()
-        .single();
-
-      if (dbError || !payment) {
-        throw new Error(dbError?.message || 'Failed to create payment record');
-      }
-
-      // Create Stripe payment intent
-      const response = await fetch('http://localhost:3001/api/create-payment-intent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount: details.amount * 100, // Convert to cents
-          payment_id: payment.id,
-        }),
-      });
-
-      const { clientSecret, error: stripeError } = await response.json();
-      if (stripeError) {
-        throw new Error(stripeError);
-      }
-
-      // Confirm card payment
-      const { error: confirmError } = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: {
-          card: details.paymentMethod === 'card' ? details.paymentMethod : undefined,
-          billing_details: {
-            email: details.payerId // User's email
-          }
-        }
-      });
-
-      if (confirmError) {
-        // Update payment status to failed
-        await supabase
-          .from('payments')
-          .update({
-            status: 'failed',
-            payment_details: { error: confirmError.message }
-          })
-          .eq('id', payment.id);
-
-        return {
-          success: false,
-          paymentId: payment.id,
-          error: confirmError.message,
-          status: 'failed'
-        };
-      }
-
-      // Update payment status to completed
-      const { data: updatedPayment, error: updateError } = await supabase
-        .from('payments')
-        .update({
-          status: 'completed',
-          transaction_id: clientSecret.split('_secret_')[0],
-          payment_details: { clientSecret }
-        })
-        .eq('id', payment.id)
-        .select()
-        .single();
-
-      if (updateError || !updatedPayment) {
-        throw new Error(updateError?.message || 'Failed to update payment status');
-      }
-
-      return {
-        success: true,
-        paymentId: updatedPayment.id,
-        transactionId: updatedPayment.transaction_id,
-        status: 'completed'
-      };
-    } catch (error) {
-      console.error('Payment processing error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Payment processing failed',
-        status: 'failed'
-      };
+export const processPayment = async (
+  amount: number,
+  paymentMethod: PaymentMethod,
+  orderId: string,
+  payerId: string,
+  receiverId: string
+): Promise<PaymentResult> => {
+  try {
+    // Validate required fields
+    if (!amount || amount <= 0) {
+      throw new Error('Invalid payment amount');
     }
-  },
+    
+    if (!orderId || !payerId || !receiverId) {
+      throw new Error('Missing required payment information');
+    }
+    
+    // Log payment attempt for debugging
+    console.log('Processing payment:', {
+      amount,
+      paymentMethod: paymentMethod.type,
+      orderId,
+      payerId,
+      receiverId
+    });
 
-  async getPaymentStatus(paymentId: string): Promise<PaymentStatus> {
-    const { data: payment, error } = await supabase
+    // Create payment record in database
+    const { error: dbError, data: payment } = await supabase
       .from('payments')
-      .select('status')
+      .insert({
+        order_id: orderId,
+        payer_id: payerId,
+        receiver_id: receiverId,
+        amount: amount,
+        payment_method: paymentMethod.type,
+        status: 'pending',
+      })
+      .select()
+      .single();
+
+    if (dbError) {
+      throw new Error(dbError?.message || 'Failed to create payment record');
+    }
+
+    // Simulate payment processing based on method
+    if (paymentMethod.type === 'upi') {
+      // Simulate UPI payment processing
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Update payment status to completed
+      const { error: updateError } = await supabase
+        .from('payments')
+        .update({ status: 'completed' })
+        .eq('id', payment.id);
+
+      if (updateError) {
+        throw new Error('Payment processed but failed to update status');
+      }
+
+      return { success: true, paymentId: payment.id };
+    } else if (paymentMethod.type === 'wallet') {
+      // Simulate wallet payment processing
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Update payment status to completed
+      const { error: updateError } = await supabase
+        .from('payments')
+        .update({ status: 'completed' })
+        .eq('id', payment.id);
+
+      if (updateError) {
+        throw new Error('Payment processed but failed to update status');
+      }
+
+      return { success: true, paymentId: payment.id };
+    }
+
+    throw new Error('Unsupported payment method');
+
+  } catch (error) {
+    console.error('Payment processing error:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Payment processing failed' 
+    };
+  }
+};
+
+export const getPaymentStatus = async (paymentId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('payments')
+      .select('*')
       .eq('id', paymentId)
       .single();
 
-    if (error || !payment) {
-      throw new Error(error?.message || 'Payment not found');
+    if (error) {
+      throw new Error(error.message);
     }
 
-    return payment.status;
-  },
+    return data;
+  } catch (error) {
+    console.error('Error fetching payment status:', error);
+    throw error;
+  }
+};
 
-  async getPaymentHistory(userId: string) {
-    const { data: payments, error } = await supabase
+export const getPaymentHistory = async (userId: string) => {
+  try {
+    const { data, error } = await supabase
       .from('payments')
-      .select(`
-        *,
-        orders (*),
-        payer:payer_id (*),
-        receiver:receiver_id (*)
-      `)
+      .select('*')
       .or(`payer_id.eq.${userId},receiver_id.eq.${userId}`)
       .order('created_at', { ascending: false });
 
@@ -151,66 +132,9 @@ export const paymentService = {
       throw new Error(error.message);
     }
 
-    return payments;
-  },
-
-  async processRefund(paymentId: string): Promise<PaymentResult> {
-    try {
-      const { data: payment, error: fetchError } = await supabase
-        .from('payments')
-        .select('*')
-        .eq('id', paymentId)
-        .single();
-
-      if (fetchError || !payment) {
-        throw new Error(fetchError?.message || 'Payment not found');
-      }
-
-      // Call Stripe refund API
-      const response = await fetch('/api/refund-payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          payment_id: paymentId,
-          transaction_id: payment.transaction_id
-        }),
-      });
-
-      const { success, error: refundError } = await response.json();
-      if (!success) {
-        throw new Error(refundError || 'Refund failed');
-      }
-
-      // Update payment status to refunded
-      const { data: updatedPayment, error: updateError } = await supabase
-        .from('payments')
-        .update({
-          status: 'refunded',
-          payment_details: { ...payment.payment_details, refunded: true }
-        })
-        .eq('id', paymentId)
-        .select()
-        .single();
-
-      if (updateError || !updatedPayment) {
-        throw new Error(updateError?.message || 'Failed to update refund status');
-      }
-
-      return {
-        success: true,
-        paymentId: updatedPayment.id,
-        transactionId: updatedPayment.transaction_id,
-        status: 'refunded'
-      };
-    } catch (error) {
-      console.error('Refund processing error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Refund processing failed',
-        status: 'failed'
-      };
-    }
+    return data;
+  } catch (error) {
+    console.error('Error fetching payment history:', error);
+    throw error;
   }
 };

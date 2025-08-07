@@ -73,7 +73,7 @@ const featuredProject = {
   reviews: 127,
   delivery: '7 days',
   category: 'Web Development',
-  skills: ['React', 'Node.js', 'UI/UX', 'Stripe', 'Responsive', 'Performance'],
+  skills: ['React', 'Node.js', 'UI/UX', 'Responsive', 'Performance'],
   reviewList: [
     { name: 'Priya Sharma', rating: 5, comment: 'Outstanding work! The new site is fast and beautiful.', date: '2024-06-01' },
     { name: 'Rahul Verma', rating: 4.5, comment: 'Great attention to detail and user experience.', date: '2024-06-10' },

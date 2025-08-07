@@ -178,7 +178,7 @@ export const ServiceFreelancers: React.FC = () => {
   //         'GraphQL specialist with Apollo experience',
   //         'Microservices architect with Docker expertise',
   //         'Progressive Web App developer',
-  //         'E-commerce specialist with Shopify/Stripe'
+  //         'E-commerce specialist with Shopify'
   //       ],
   //       skills: ['React', 'Node.js', 'TypeScript', 'MongoDB', 'PostgreSQL', 'AWS', 'Docker', 'GraphQL', 'Vue.js', 'Angular', 'Python', 'PHP', 'Ruby', 'Flutter', 'Next.js', 'Laravel'],
   //       priceRange: { min: 500, max: 5000 }
