@@ -104,7 +104,7 @@ const PortfolioPage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-dark-950 to-dark-900">
       <div className="w-full px-6 py-8">
         <button
-          onClick={() => navigate('/profile-completion')}
+          onClick={() => navigate('/profile')}
           className="mb-6 px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold shadow transition-all"
         >
           Profile
@@ -332,7 +332,7 @@ const PortfolioPage: React.FC = () => {
             Back to Dashboard
           </button>
           <button
-            onClick={() => navigate('/profile-completion')}
+                          onClick={() => navigate('/profile')}
             className="px-8 py-3 bg-dark-700 hover:bg-dark-600 text-white rounded-lg font-semibold transition-colors duration-200"
           >
             Profile Completion

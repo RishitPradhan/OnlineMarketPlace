@@ -2,168 +2,130 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { simpleAuthService } from '../../lib/simple-auth';
+import { 
+  User, 
+  Mail, 
+  Phone, 
+  MapPin, 
+  Globe, 
+  Briefcase, 
+  Star, 
+  Edit3, 
+  Save, 
+  X, 
+  Camera,
+  CheckCircle,
+  AlertCircle,
+  TrendingUp,
+  Award,
+  Users,
+  DollarSign
+} from 'lucide-react';
 
-const LOCAL_KEY = 'profileData';
-const LOCAL_SKILLS_KEY = 'skillsData';
-const LOCAL_SERVICES_KEY = 'servicesData';
-const LOCAL_PORTFOLIO_KEY = 'portfolioProjects';
+// User-specific localStorage keys
+const getUserStorageKey = (userId: string, key: string): string => {
+  return `user_${userId}_${key}`;
+};
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
-  const authContext = useAuth();
-  const { login } = useAuth();
-  const [formData, setFormData] = useState({
-    firstName: user?.firstName || '',
-    lastName: user?.lastName || '',
-    bio: '',
-    skills: [] as string[],
-    hourlyRate: '',
-    location: '',
-    website: '',
-    phone: ''
-  });
-  const [isEditing, setIsEditing] = useState(true);
-  const [newSkill, setNewSkill] = useState('');
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [missingFields, setMissingFields] = useState<string[]>([]);
-  // Use this to display skills and portfolio:
-  const skills = JSON.parse(localStorage.getItem('skillsData') || '[]');
-  const portfolio = JSON.parse(localStorage.getItem('portfolioProjects') || '[]');
-  // Unify progress bar logic with DashboardOverview
-  const profileChecks = {
-    profile: !!(formData.firstName && formData.lastName && formData.hourlyRate && formData.location),
-    bio: !!(formData.bio && String(formData.bio).trim() !== ''),
-    portfolio: Array.isArray(portfolio) && portfolio.length > 0,
-    skills: Array.isArray(skills) && skills.length > 0
-  };
-  const profileCompletion = Math.round((Object.values(profileChecks).filter(Boolean).length / 4) * 100);
-
-  const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?name=User&background=10b981&color=fff&size=128';
+  const { user, updateUser } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState(user?.avatar || DEFAULT_AVATAR);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Update avatarUrl if user.avatar changes
+  // Form state
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    location: '',
+    website: '',
+    bio: '',
+    hourlyRate: '',
+    skills: [] as string[],
+    experience: '',
+    education: '',
+    languages: [] as string[],
+    portfolio: [] as Array<{title: string, description: string, url: string, image: string}>
+  });
+
+  // UI state
+  const [isEditing, setIsEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState('basic');
+  const [newSkill, setNewSkill] = useState('');
+  const [newLanguage, setNewLanguage] = useState('');
+  const [newPortfolioItem, setNewPortfolioItem] = useState({
+    title: '',
+    description: '',
+    url: '',
+    image: ''
+  });
+
+  const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?name=User&background=10b981&color=fff&size=128';
+  const [avatarUrl, setAvatarUrl] = useState(DEFAULT_AVATAR);
+
+  // Load user data on mount
   useEffect(() => {
-    setAvatarUrl(user?.avatar || DEFAULT_AVATAR);
-  }, [user?.avatar]);
-
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!user) {
-      setAvatarError('User not loaded. Please try again later.');
-      return;
-    }
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setAvatarUploading(true);
-    setAvatarError(null);
-    try {
-      // Upload to Supabase Storage
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}_${Date.now()}.${fileExt}`;
-      const { data, error } = await supabase.storage.from('avatars').upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: true,
-      });
-      if (error) throw error;
-      // Get public URL
-      const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
-      const publicUrl = publicUrlData?.publicUrl;
-      if (!publicUrl) throw new Error('Failed to get public URL');
-      setAvatarUrl(publicUrl);
-      // Update user in DB
-      await supabase.from('users').update({ avatar: publicUrl }).eq('id', user.id);
-      // Re-fetch user and update AuthContext
-      const updatedUser = await simpleAuthService.getCurrentUser();
-      if (updatedUser && authContext && typeof authContext === 'object' && 'user' in authContext) {
-        // Directly update the user in AuthContext
-        if (authContext.user && typeof authContext.user === 'object') {
-          authContext.user.avatar = updatedUser.avatar;
-        }
-      }
-      setAvatarUploading(false);
-    } catch (err: any) {
-      setAvatarError(err.message || 'Failed to upload avatar');
-      setAvatarUploading(false);
-    }
-  };
-
-  if (loading) {
-    return <div className="flex items-center justify-center min-h-screen text-xl text-green-400">Loading...</div>;
-  }
-  if (!user) {
-    window.location.href = '/login';
-    return null;
-  }
-
-  // Load from localStorage on mount, fallback to user data if empty
-  useEffect(() => {
-    window.scrollTo(0, 0);
-    const saved = localStorage.getItem(LOCAL_KEY);
-    if (saved) {
-      setFormData(JSON.parse(saved));
-    } else if (user) {
-      setFormData({
+    if (user) {
+      // Load from user object first
+      setFormData(prev => ({
+        ...prev,
         firstName: user.firstName || '',
         lastName: user.lastName || '',
-        bio: '',
-        skills: [],
-        hourlyRate: '',
-        location: '',
-        website: '',
-        phone: ''
-      });
+        email: user.email || ''
+      }));
+
+      // Load additional data from localStorage
+      const profileData = localStorage.getItem(getUserStorageKey(user.id, 'profileData'));
+      if (profileData) {
+        const savedData = JSON.parse(profileData);
+        setFormData(prev => ({
+          ...prev,
+          ...savedData,
+          firstName: user.firstName || savedData.firstName || '',
+          lastName: user.lastName || savedData.lastName || '',
+          email: user.email || savedData.email || ''
+        }));
+      }
+
+      // Load skills
+      const skillsData = localStorage.getItem(getUserStorageKey(user.id, 'skillsData'));
+      if (skillsData) {
+        setFormData(prev => ({
+          ...prev,
+          skills: JSON.parse(skillsData)
+        }));
+      }
+
+      // Load portfolio
+      const portfolioData = localStorage.getItem(getUserStorageKey(user.id, 'portfolioProjects'));
+      if (portfolioData) {
+        setFormData(prev => ({
+          ...prev,
+          portfolio: JSON.parse(portfolioData)
+        }));
+      }
+
+      // Set avatar
+      setAvatarUrl(user.avatar || DEFAULT_AVATAR);
     }
   }, [user]);
 
-  // Calculate completion percentage and missing fields
-  const requiredFields = ['firstName', 'lastName', 'bio', 'hourlyRate', 'location'];
-  const filledFields = requiredFields.filter(field =>
-    formData[field as keyof typeof formData] &&
-    String(formData[field as keyof typeof formData]).trim() !== ''
-  );
-  const completionPercentage = Math.round((filledFields.length / requiredFields.length) * 100);
-
+  // Update formData when user object changes
   useEffect(() => {
-    const missing = requiredFields.filter(field =>
-      !formData[field as keyof typeof formData] || String(formData[field as keyof typeof formData]).trim() === ''
-    );
-    setMissingFields(missing);
-  }, [formData]);
-
-  // Listen for localStorage and custom events to update progress bar/checklist
-  useEffect(() => {
-    function recalcProfileCompletion() {
-      // This will trigger a re-render by updating state
-      setFormData(f => ({ ...f }));
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        firstName: user.firstName || prev.firstName,
+        lastName: user.lastName || prev.lastName,
+        email: user.email || prev.email
+      }));
     }
-    window.addEventListener('storage', recalcProfileCompletion);
-    window.addEventListener('skills-updated', recalcProfileCompletion);
-    window.addEventListener('profile-updated', recalcProfileCompletion);
-    window.addEventListener('portfolio-updated', recalcProfileCompletion);
-    return () => {
-      window.removeEventListener('storage', recalcProfileCompletion);
-      window.removeEventListener('skills-updated', recalcProfileCompletion);
-      window.removeEventListener('profile-updated', recalcProfileCompletion);
-      window.removeEventListener('portfolio-updated', recalcProfileCompletion);
-    };
-  }, []);
-
-  // useEffect(() => {
-  //   function forceRerender() {
-  //     setVersion(v => v + 1);
-  //   }
-  //   window.addEventListener('profile-updated', forceRerender);
-  //   window.addEventListener('skills-updated', forceRerender);
-  //   window.addEventListener('storage', forceRerender);
-  //   return () => {
-  //     window.removeEventListener('profile-updated', forceRerender);
-  //     window.removeEventListener('skills-updated', forceRerender);
-  //     window.removeEventListener('storage', forceRerender);
-  //   };
-  // }, []);
+  }, [user?.firstName, user?.lastName, user?.email]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -173,236 +135,933 @@ const ProfilePage: React.FC = () => {
     }));
   };
 
-  const handleSave = () => {
-    if (missingFields.length > 0) {
-      setSaveSuccess(false);
-      return;
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user) return;
+    
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setAvatarUploading(true);
+    setAvatarError(null);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}_${Date.now()}.${fileExt}`;
+      
+      const { data, error } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: true,
+        });
+
+      if (error) throw error;
+
+      const { data: publicUrlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      const publicUrl = publicUrlData?.publicUrl;
+      if (!publicUrl) throw new Error('Failed to get public URL');
+
+      setAvatarUrl(publicUrl);
+
+      // Update user in database and AuthContext
+      await supabase.from('users').update({ avatar: publicUrl }).eq('id', user.id);
+      
+      const updatedUser = { ...user, avatar: publicUrl };
+      updateUser(updatedUser);
+
+      setSuccessMessage('Avatar updated successfully!');
+      setTimeout(() => setSuccessMessage(null), 3000);
+
+    } catch (err: any) {
+      setAvatarError(err.message || 'Failed to upload avatar');
+    } finally {
+      setAvatarUploading(false);
     }
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(formData));
-    // Reload from localStorage to ensure UI and progress bar are in sync
-    const saved = localStorage.getItem(LOCAL_KEY);
-    if (saved) {
-      setFormData(JSON.parse(saved));
-    }
-    setIsEditing(false);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 2000);
   };
 
-  const handleReset = () => {
-    const saved = localStorage.getItem(LOCAL_KEY);
-    if (saved) {
-      setFormData(JSON.parse(saved));
+  const handleSave = async () => {
+    if (!user) return;
+
+    setSaving(true);
+    setSuccessMessage(null);
+
+    try {
+      // Update user object in AuthContext
+      const updatedUser = {
+        ...user,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email
+      };
+
+      // Update in database
+      await supabase.from('users').update({
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        email: formData.email
+      }).eq('id', user.id);
+
+      // Update AuthContext
+      updateUser(updatedUser);
+
+      // Save additional data to localStorage
+      const profileData = {
+        phone: formData.phone,
+        location: formData.location,
+        website: formData.website,
+        bio: formData.bio,
+        hourlyRate: formData.hourlyRate,
+        experience: formData.experience,
+        education: formData.education,
+        languages: formData.languages
+      };
+
+      localStorage.setItem(getUserStorageKey(user.id, 'profileData'), JSON.stringify(profileData));
+      localStorage.setItem(getUserStorageKey(user.id, 'skillsData'), JSON.stringify(formData.skills));
+      localStorage.setItem(getUserStorageKey(user.id, 'portfolioProjects'), JSON.stringify(formData.portfolio));
+
+      setSuccessMessage('Profile updated successfully!');
+      setIsEditing(false);
+
+      setTimeout(() => setSuccessMessage(null), 3000);
+
+    } catch (error) {
+      console.error('Failed to save profile:', error);
+      setSuccessMessage('Failed to save profile. Please try again.');
+    } finally {
+      setSaving(false);
     }
-    setIsEditing(false);
   };
 
   const handleAddSkill = () => {
-    const skill = newSkill.trim();
-    if (skill && !formData.skills.includes(skill)) {
-      setFormData(prev => ({ ...prev, skills: [...prev.skills, skill] }));
+    if (newSkill.trim() && !formData.skills.includes(newSkill.trim())) {
+      const updatedSkills = [...formData.skills, newSkill.trim()];
+      setFormData(prev => ({
+        ...prev,
+        skills: updatedSkills
+      }));
+      
+      // Save to localStorage immediately
+      if (user) {
+        localStorage.setItem(getUserStorageKey(user.id, 'skillsData'), JSON.stringify(updatedSkills));
+      }
+      
       setNewSkill('');
     }
   };
 
-  const handleRemoveSkill = (skill: string) => {
-    setFormData(prev => ({ ...prev, skills: prev.skills.filter(s => s !== skill) }));
-  };
-
-  const profileSections = [
-    {
-      title: "Basic Information",
-      fields: [
-        { name: "firstName", label: "First Name", type: "text", required: true },
-        { name: "lastName", label: "Last Name", type: "text", required: true },
-        { name: "bio", label: "Bio", type: "textarea", required: true }
-      ]
-    },
-    {
-      title: "Professional Details",
-      fields: [
-        { name: "hourlyRate", label: "Hourly Rate (₹)", type: "number", required: true },
-        { name: "location", label: "Location", type: "text", required: true },
-        { name: "website", label: "Website", type: "url", required: false }
-      ]
-    },
-    {
-      title: "Contact Information",
-      fields: [
-        { name: "phone", label: "Phone Number", type: "tel", required: false }
-      ]
+  const handleRemoveSkill = (skillToRemove: string) => {
+    const updatedSkills = formData.skills.filter(skill => skill !== skillToRemove);
+    setFormData(prev => ({
+      ...prev,
+      skills: updatedSkills
+    }));
+    
+    // Save to localStorage immediately
+    if (user) {
+      localStorage.setItem(getUserStorageKey(user.id, 'skillsData'), JSON.stringify(updatedSkills));
     }
-  ];
-
-  const reloadSkills = () => {
-    const skillsSaved = localStorage.getItem(LOCAL_SKILLS_KEY);
-    // setSkills(skillsSaved ? JSON.parse(skillsSaved) : []); // This line is removed
   };
+
+  const handleAddLanguage = () => {
+    if (newLanguage.trim() && !formData.languages.includes(newLanguage.trim())) {
+      const updatedLanguages = [...formData.languages, newLanguage.trim()];
+      setFormData(prev => ({
+        ...prev,
+        languages: updatedLanguages
+      }));
+      
+      // Save to localStorage immediately
+      if (user) {
+        localStorage.setItem(getUserStorageKey(user.id, 'profileData'), JSON.stringify({
+          ...JSON.parse(localStorage.getItem(getUserStorageKey(user.id, 'profileData')) || '{}'),
+          languages: updatedLanguages
+        }));
+      }
+      
+      setNewLanguage('');
+    }
+  };
+
+  const handleRemoveLanguage = (languageToRemove: string) => {
+    const updatedLanguages = formData.languages.filter(lang => lang !== languageToRemove);
+    setFormData(prev => ({
+      ...prev,
+      languages: updatedLanguages
+    }));
+    
+    // Save to localStorage immediately
+    if (user) {
+      const currentProfileData = JSON.parse(localStorage.getItem(getUserStorageKey(user.id, 'profileData')) || '{}');
+      localStorage.setItem(getUserStorageKey(user.id, 'profileData'), JSON.stringify({
+        ...currentProfileData,
+        languages: updatedLanguages
+      }));
+    }
+  };
+
+  // Portfolio management functions
+  const handleAddPortfolioItem = () => {
+    if (newPortfolioItem.title.trim() && newPortfolioItem.description.trim()) {
+      const updatedPortfolio = [...formData.portfolio, { ...newPortfolioItem }];
+      setFormData(prev => ({
+        ...prev,
+        portfolio: updatedPortfolio
+      }));
+      
+      // Save to localStorage immediately
+      if (user) {
+        localStorage.setItem(getUserStorageKey(user.id, 'portfolioProjects'), JSON.stringify(updatedPortfolio));
+      }
+      
+      setNewPortfolioItem({ title: '', description: '', url: '', image: '' });
+    }
+  };
+
+  const handleRemovePortfolioItem = (index: number) => {
+    const updatedPortfolio = formData.portfolio.filter((_, i) => i !== index);
+    setFormData(prev => ({
+      ...prev,
+      portfolio: updatedPortfolio
+    }));
+    
+    // Save to localStorage immediately
+    if (user) {
+      localStorage.setItem(getUserStorageKey(user.id, 'portfolioProjects'), JSON.stringify(updatedPortfolio));
+    }
+  };
+
+  const handlePortfolioItemChange = (field: string, value: string) => {
+    setNewPortfolioItem(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent, action: () => void) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      action();
+    }
+  };
+
+  // Calculate completion percentage
+  const basicFields = ['firstName', 'lastName', 'email'];
+  const professionalFields = user?.role === 'freelancer' ? ['bio', 'location', 'hourlyRate', 'skills', 'portfolio'] : ['phone', 'location'];
+  const completedBasic = basicFields.filter(field => formData[field as keyof typeof formData]?.toString().trim()).length;
+  const completedProfessional = professionalFields.filter(field => {
+    const value = formData[field as keyof typeof formData];
+    if (field === 'skills') return Array.isArray(value) && value.length > 0;
+    if (field === 'portfolio') return Array.isArray(value) && value.length > 0;
+    return value?.toString().trim();
+  }).length;
+
+  const basicCompletion = Math.round((completedBasic / basicFields.length) * 100);
+  const professionalCompletion = Math.round((completedProfessional / professionalFields.length) * 100);
+  const overallCompletion = Math.round(((completedBasic + completedProfessional) / (basicFields.length + professionalFields.length)) * 100);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-dark-950 to-dark-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
+          <p className="text-green-400">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    navigate('/login');
+    return null;
+  }
+
+  const tabs = [
+    { id: 'basic', label: 'Basic Info', icon: User },
+    { id: 'professional', label: 'Professional', icon: Briefcase },
+    { id: 'skills', label: 'Skills & Languages', icon: Star },
+    { id: 'preview', label: 'Preview', icon: Award }
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-950 to-dark-900">
-      <div className="w-full px-6 py-8">
-        <button
-          onClick={() => navigate('/profile-completion')}
-          className="mb-6 px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold shadow transition-all"
-        >
-          Profile
-        </button>
-        {/* Profile Completion Progress */}
-
-        {/* Profile Form */}
-        <div className="bg-dark-800 rounded-lg p-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-white">Profile Information</h2>
-            <button
-              onClick={() => setIsEditing(!isEditing)}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors duration-200"
-            >
-              {isEditing ? 'Cancel' : 'Edit Profile'}
-            </button>
-          </div>
-
-          {/* Profile Picture Upload UI */}
-          <div className="flex flex-col items-center mb-8">
-            <div className="relative group">
-              <img
-                src={avatarUrl || DEFAULT_AVATAR}
-                alt="Profile"
-                className="w-32 h-32 rounded-full object-cover border-4 border-green-400 shadow-lg bg-white"
-              />
-              {isEditing && (
-                <label className="absolute bottom-0 right-0 bg-green-600 text-white rounded-full p-2 cursor-pointer shadow-lg hover:bg-green-700 transition-all">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleAvatarChange}
-                    disabled={avatarUploading}
-                  />
-                  <span className="text-xs font-semibold">{avatarUploading ? 'Uploading...' : 'Edit'}</span>
-                </label>
+      {/* Header */}
+      <div className="bg-dark-900/50 border-b border-green-500/20 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => navigate(-1)}
+                className="flex items-center text-green-400 hover:text-green-300 transition-colors"
+              >
+                <X className="w-5 h-5 mr-2" />
+                Back
+              </button>
+              <h1 className="text-3xl font-bold text-white">Profile Settings</h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-800 text-white font-semibold rounded-lg transition-all duration-300 flex items-center space-x-2"
+                  >
+                    {saving ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        <span>Save Changes</span>
+                      </>
+                    )}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-all duration-300 flex items-center space-x-2"
+                >
+                  <Edit3 className="w-4 h-4" />
+                  <span>Edit Profile</span>
+                </button>
               )}
             </div>
-            {avatarError && <div className="text-red-400 mt-2 text-sm">{avatarError}</div>}
           </div>
+        </div>
+      </div>
 
-          <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
-            {profileSections.map((section, sectionIndex) => (
-              <div key={sectionIndex} className="mb-8">
-                <h3 className="text-xl font-semibold text-white mb-4">{section.title}</h3>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {section.fields.map((field, fieldIndex) => (
-                    <div key={fieldIndex}>
-                      <label className="block text-gray-300 mb-2 font-medium">
-                        {field.label} {field.required && <span className="text-red-400">*</span>}
-                      </label>
-                      {field.type === 'textarea' ? (
-                        <textarea
-                          name={field.name}
-                          value={formData[field.name as keyof typeof formData] as string}
-                          onChange={handleInputChange}
-                          disabled={!isEditing}
-                          rows={4}
-                          className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-400 focus:border-green-500 focus:outline-none disabled:opacity-50"
-                          placeholder={`Enter your ${field.label.toLowerCase()}`}
-                        />
-                      ) : (
-                        <input
-                          type={field.type}
-                          name={field.name}
-                          value={formData[field.name as keyof typeof formData] as string}
-                          onChange={handleInputChange}
-                          disabled={!isEditing}
-                          className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-400 focus:border-green-500 focus:outline-none disabled:opacity-50"
-                          placeholder={`Enter your ${field.label.toLowerCase()}`}
-                        />
-                      )}
-                    </div>
-                  ))}
+      {/* Success Message */}
+      {successMessage && (
+        <div className="fixed top-4 right-4 z-50 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2">
+          <CheckCircle className="w-5 h-5" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
+      <div className="max-w-7xl mx-auto p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column - Avatar and Stats */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Avatar Section */}
+            <div className="bg-dark-800/50 rounded-2xl p-6 border border-green-500/20">
+              <div className="text-center">
+                <div className="relative inline-block">
+                  <img
+                    src={avatarUrl}
+                    alt="Profile"
+                    className="w-32 h-32 rounded-full object-cover border-4 border-green-500/20"
+                  />
+                  {isEditing && (
+                    <label className="absolute bottom-0 right-0 bg-green-600 hover:bg-green-700 text-white p-2 rounded-full cursor-pointer transition-all duration-300">
+                      <Camera className="w-4 h-4" />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarChange}
+                        className="hidden"
+                        disabled={avatarUploading}
+                      />
+                    </label>
+                  )}
+                </div>
+                {avatarUploading && (
+                  <p className="text-green-400 text-sm mt-2">Uploading...</p>
+                )}
+                {avatarError && (
+                  <p className="text-red-400 text-sm mt-2">{avatarError}</p>
+                )}
+                <h2 className="text-xl font-bold text-white mt-4">
+                  {formData.firstName} {formData.lastName}
+                </h2>
+                <p className="text-gray-400">{formData.email}</p>
+              </div>
+            </div>
+
+            {/* Completion Stats */}
+            <div className="bg-dark-800/50 rounded-2xl p-6 border border-green-500/20">
+              <h3 className="text-lg font-semibold text-white mb-4">Profile Completion</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-gray-400">Basic Info</span>
+                    <span className="text-green-400">{basicCompletion}%</span>
+                  </div>
+                  <div className="w-full bg-dark-700 rounded-full h-2">
+                    <div 
+                      className="bg-green-500 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${basicCompletion}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-gray-400">Professional</span>
+                    <span className="text-green-400">{professionalCompletion}%</span>
+                  </div>
+                  <div className="w-full bg-dark-700 rounded-full h-2">
+                    <div 
+                      className="bg-green-500 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${professionalCompletion}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-dark-600">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-white font-semibold">Overall</span>
+                    <span className="text-green-400 font-semibold">{overallCompletion}%</span>
+                  </div>
+                  <div className="w-full bg-dark-700 rounded-full h-3">
+                    <div 
+                      className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full transition-all duration-500"
+                      style={{ width: `${overallCompletion}%` }}
+                    />
+                  </div>
                 </div>
               </div>
-            ))}
+            </div>
 
-            {isEditing && (
-              <div className="flex justify-end space-x-4">
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="px-6 py-3 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors duration-200"
-                >
-                  Reset
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(false)}
-                  className="px-6 py-3 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors duration-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors duration-200"
-                >
-                  Save Changes
-                </button>
-              </div>
-            )}
-          </form>
-          {saveSuccess && (
-            <div className="mt-4 text-green-400 text-center font-semibold">Profile saved successfully!</div>
-          )}
-        </div>
-
-        {/* Skills Section */}
-        <div className="bg-dark-800 rounded-lg p-8 mt-8">
-          <h3 className="text-2xl font-bold text-white mb-6">Skills & Expertise</h3>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div>
-              <label className="block text-gray-300 mb-2 font-medium">Your Skills</label>
-              <div className="flex flex-wrap gap-2">
-                {skills.length === 0 ? (
-                  <p className="text-gray-400 text-sm">No skills added yet. Add your first skill on the Skills page.</p>
-                ) : (
-                  skills.map((skill: any, index: number) => (
-                    <span
-                      key={index}
-                      className="px-3 py-1 bg-green-600 text-white rounded-full text-sm"
-                    >
-                      {skill.name}
-                    </span>
-                  ))
+            {/* Quick Stats */}
+            <div className="bg-dark-800/50 rounded-2xl p-6 border border-green-500/20">
+              <h3 className="text-lg font-semibold text-white mb-4">Quick Stats</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Star className="w-4 h-4 text-green-400" />
+                    <span className="text-gray-400">Skills</span>
+                  </div>
+                  <span className="text-white font-semibold">{formData.skills.length}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Users className="w-4 h-4 text-green-400" />
+                    <span className="text-gray-400">Languages</span>
+                  </div>
+                  <span className="text-white font-semibold">{formData.languages.length}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <DollarSign className="w-4 h-4 text-green-400" />
+                    <span className="text-gray-400">Hourly Rate</span>
+                  </div>
+                  <span className="text-white font-semibold">
+                    {formData.hourlyRate ? `₹${formData.hourlyRate}` : 'Not set'}
+                  </span>
+                </div>
+                {user?.role === 'freelancer' && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Award className="w-4 h-4 text-green-400" />
+                      <span className="text-gray-400">Portfolio Projects</span>
+                    </div>
+                    <span className="text-white font-semibold">{formData.portfolio.length}</span>
+                  </div>
                 )}
               </div>
-              <button
-                onClick={() => navigate('/skills')}
-                className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold shadow transition-all"
-              >
-                Edit Skills
-              </button>
-              <button
-                onClick={reloadSkills}
-                className="mt-2 px-6 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-semibold shadow transition-all"
-              >
-                Reload Skills
-              </button>
             </div>
           </div>
-        </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors duration-200"
-          >
-            Back to Dashboard
-          </button>
-          <button
-            onClick={() => navigate('/profile-completion')}
-            className="px-8 py-3 bg-dark-700 hover:bg-dark-600 text-white rounded-lg font-semibold transition-colors duration-200"
-          >
-            Profile Completion
-          </button>
+          {/* Right Column - Form */}
+          <div className="lg:col-span-2">
+            {/* Tabs */}
+            <div className="bg-dark-800/50 rounded-2xl p-6 border border-green-500/20 mb-6">
+              <div className="flex space-x-1 mb-6">
+                {tabs.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 ${
+                        activeTab === tab.id
+                          ? 'bg-green-600 text-white'
+                          : 'text-gray-400 hover:text-white hover:bg-dark-700'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Tab Content */}
+              <div className="min-h-[400px]">
+                {activeTab === 'basic' && (
+                  <div className="space-y-6">
+                    <h3 className="text-xl font-semibold text-white mb-4">Basic Information</h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-2">
+                          First Name *
+                        </label>
+                        <input
+                          type="text"
+                          name="firstName"
+                          value={formData.firstName}
+                          onChange={handleInputChange}
+                          disabled={!isEditing}
+                          className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-400 focus:border-green-500 focus:outline-none disabled:opacity-50"
+                          placeholder="Enter your first name"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-2">
+                          Last Name *
+                        </label>
+                        <input
+                          type="text"
+                          name="lastName"
+                          value={formData.lastName}
+                          onChange={handleInputChange}
+                          disabled={!isEditing}
+                          className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-400 focus:border-green-500 focus:outline-none disabled:opacity-50"
+                          placeholder="Enter your last name"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-2">
+                          Email *
+                        </label>
+                        <input
+                          type="email"
+                          name="email"
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          disabled={!isEditing}
+                          className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-400 focus:border-green-500 focus:outline-none disabled:opacity-50"
+                          placeholder="Enter your email"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-2">
+                          Phone
+                        </label>
+                        <input
+                          type="tel"
+                          name="phone"
+                          value={formData.phone}
+                          onChange={handleInputChange}
+                          disabled={!isEditing}
+                          className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-400 focus:border-green-500 focus:outline-none disabled:opacity-50"
+                          placeholder="Enter your phone number"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-2">
+                          Location
+                        </label>
+                        <input
+                          type="text"
+                          name="location"
+                          value={formData.location}
+                          onChange={handleInputChange}
+                          disabled={!isEditing}
+                          className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-400 focus:border-green-500 focus:outline-none disabled:opacity-50"
+                          placeholder="Enter your location"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-2">
+                          Website
+                        </label>
+                        <input
+                          type="url"
+                          name="website"
+                          value={formData.website}
+                          onChange={handleInputChange}
+                          disabled={!isEditing}
+                          className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-400 focus:border-green-500 focus:outline-none disabled:opacity-50"
+                          placeholder="Enter your website URL"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'professional' && (
+                  <div className="space-y-6">
+                    <h3 className="text-xl font-semibold text-white mb-4">Professional Information</h3>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">
+                        Bio
+                      </label>
+                      <textarea
+                        name="bio"
+                        value={formData.bio}
+                        onChange={handleInputChange}
+                        disabled={!isEditing}
+                        rows={4}
+                        className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-400 focus:border-green-500 focus:outline-none disabled:opacity-50"
+                        placeholder="Tell us about yourself..."
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-2">
+                          Hourly Rate (₹)
+                        </label>
+                        <input
+                          type="number"
+                          name="hourlyRate"
+                          value={formData.hourlyRate}
+                          onChange={handleInputChange}
+                          disabled={!isEditing}
+                          className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-400 focus:border-green-500 focus:outline-none disabled:opacity-50"
+                          placeholder="Enter your hourly rate"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-2">
+                          Experience
+                        </label>
+                        <input
+                          type="text"
+                          name="experience"
+                          value={formData.experience}
+                          onChange={handleInputChange}
+                          disabled={!isEditing}
+                          className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-400 focus:border-green-500 focus:outline-none disabled:opacity-50"
+                          placeholder="e.g., 5 years in web development"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">
+                        Education
+                      </label>
+                      <textarea
+                        name="education"
+                        value={formData.education}
+                        onChange={handleInputChange}
+                        disabled={!isEditing}
+                        rows={3}
+                        className="w-full px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-400 focus:border-green-500 focus:outline-none disabled:opacity-50"
+                        placeholder="Enter your education details..."
+                      />
+                    </div>
+
+                    {/* Portfolio Section - Only for freelancers */}
+                    {user?.role === 'freelancer' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-2">
+                          Portfolio Projects
+                        </label>
+                        <p className="text-xs text-gray-500 mb-4">Showcase your best work to attract clients</p>
+                        
+                        {/* Add new portfolio item */}
+                        {isEditing && (
+                          <div className="bg-dark-700/50 rounded-lg p-4 mb-4 border border-dark-600">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-400 mb-1">
+                                  Project Title
+                                </label>
+                                <input
+                                  type="text"
+                                  value={newPortfolioItem.title}
+                                  onChange={(e) => handlePortfolioItemChange('title', e.target.value)}
+                                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-400 focus:border-green-500 focus:outline-none text-sm"
+                                  placeholder="Project title..."
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-400 mb-1">
+                                  Project URL
+                                </label>
+                                <input
+                                  type="url"
+                                  value={newPortfolioItem.url}
+                                  onChange={(e) => handlePortfolioItemChange('url', e.target.value)}
+                                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-400 focus:border-green-500 focus:outline-none text-sm"
+                                  placeholder="https://..."
+                                />
+                              </div>
+                            </div>
+                            <div className="mb-4">
+                              <label className="block text-xs font-medium text-gray-400 mb-1">
+                                Description
+                              </label>
+                              <textarea
+                                value={newPortfolioItem.description}
+                                onChange={(e) => handlePortfolioItemChange('description', e.target.value)}
+                                rows={3}
+                                className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-400 focus:border-green-500 focus:outline-none text-sm"
+                                placeholder="Describe your project..."
+                              />
+                            </div>
+                            <div className="mb-4">
+                              <label className="block text-xs font-medium text-gray-400 mb-1">
+                                Image URL
+                              </label>
+                              <input
+                                type="url"
+                                value={newPortfolioItem.image}
+                                onChange={(e) => handlePortfolioItemChange('image', e.target.value)}
+                                className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-400 focus:border-green-500 focus:outline-none text-sm"
+                                placeholder="https://..."
+                              />
+                            </div>
+                            <button
+                              onClick={handleAddPortfolioItem}
+                              disabled={!newPortfolioItem.title.trim() || !newPortfolioItem.description.trim()}
+                              className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-dark-600 disabled:text-gray-500 text-white rounded-lg transition-colors text-sm"
+                            >
+                              Add Project
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Display existing portfolio items */}
+                        <div className="space-y-3">
+                          {formData.portfolio.map((item, index) => (
+                            <div key={index} className="bg-dark-700/50 rounded-lg p-4 border border-dark-600">
+                              <div className="flex justify-between items-start mb-2">
+                                <h4 className="text-white font-medium">{item.title}</h4>
+                                {isEditing && (
+                                  <button
+                                    onClick={() => handleRemovePortfolioItem(index)}
+                                    className="text-red-400 hover:text-red-300 text-sm"
+                                  >
+                                    Remove
+                                  </button>
+                                )}
+                              </div>
+                              {item.url && (
+                                <a 
+                                  href={item.url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-green-400 hover:text-green-300 text-sm block mb-2"
+                                >
+                                  {item.url}
+                                </a>
+                              )}
+                              <p className="text-gray-400 text-sm">{item.description}</p>
+                              {item.image && (
+                                <div className="mt-2">
+                                  <img 
+                                    src={item.image} 
+                                    alt={item.title}
+                                    className="w-full h-32 object-cover rounded-lg"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none';
+                                    }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          {formData.portfolio.length === 0 && (
+                            <div className="text-center py-8 text-gray-500">
+                              <Award className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                              <p className="text-sm">No portfolio projects yet</p>
+                              {!isEditing && (
+                                <p className="text-xs mt-1">Click Edit to add your projects</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'skills' && (
+                  <div className="space-y-6">
+                    <h3 className="text-xl font-semibold text-white mb-4">Skills & Languages</h3>
+                    
+                    {/* Skills Section */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">
+                        Skills
+                      </label>
+                      <div className="flex space-x-2 mb-4">
+                        <input
+                          type="text"
+                          value={newSkill}
+                          onChange={(e) => setNewSkill(e.target.value)}
+                          onKeyPress={(e) => handleKeyPress(e, handleAddSkill)}
+                          disabled={!isEditing}
+                          className="flex-1 px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-400 focus:border-green-500 focus:outline-none disabled:opacity-50"
+                          placeholder="Add a skill..."
+                        />
+                        {isEditing && (
+                          <button
+                            onClick={handleAddSkill}
+                            className="px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                          >
+                            Add
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {formData.skills.map((skill, index) => (
+                          <span
+                            key={index}
+                            className="px-3 py-1 bg-green-600/20 text-green-400 rounded-full text-sm flex items-center space-x-2"
+                          >
+                            <span>{skill}</span>
+                            {isEditing && (
+                              <button
+                                onClick={() => handleRemoveSkill(skill)}
+                                className="text-green-400 hover:text-red-400 transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Languages Section */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">
+                        Languages
+                      </label>
+                      <div className="flex space-x-2 mb-4">
+                        <input
+                          type="text"
+                          value={newLanguage}
+                          onChange={(e) => setNewLanguage(e.target.value)}
+                          onKeyPress={(e) => handleKeyPress(e, handleAddLanguage)}
+                          disabled={!isEditing}
+                          className="flex-1 px-4 py-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-400 focus:border-green-500 focus:outline-none disabled:opacity-50"
+                          placeholder="Add a language..."
+                        />
+                        {isEditing && (
+                          <button
+                            onClick={handleAddLanguage}
+                            className="px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                          >
+                            Add
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {formData.languages.map((language, index) => (
+                          <span
+                            key={index}
+                            className="px-3 py-1 bg-blue-600/20 text-blue-400 rounded-full text-sm flex items-center space-x-2"
+                          >
+                            <span>{language}</span>
+                            {isEditing && (
+                              <button
+                                onClick={() => handleRemoveLanguage(language)}
+                                className="text-blue-400 hover:text-red-400 transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'preview' && (
+                  <div className="space-y-6">
+                    <h3 className="text-xl font-semibold text-white mb-4">Profile Preview</h3>
+                    
+                    <div className="bg-dark-700/50 rounded-xl p-6 border border-dark-600">
+                      <div className="flex items-center space-x-4 mb-6">
+                        <img
+                          src={avatarUrl}
+                          alt="Profile"
+                          className="w-20 h-20 rounded-full object-cover border-2 border-green-500/20"
+                        />
+                        <div>
+                          <h4 className="text-xl font-bold text-white">
+                            {formData.firstName} {formData.lastName}
+                          </h4>
+                          <p className="text-gray-400">{formData.email}</p>
+                          {formData.location && (
+                            <p className="text-gray-400 flex items-center">
+                              <MapPin className="w-4 h-4 mr-1" />
+                              {formData.location}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {formData.bio && (
+                        <div className="mb-4">
+                          <h5 className="text-sm font-medium text-gray-400 mb-2">Bio</h5>
+                          <p className="text-white">{formData.bio}</p>
+                        </div>
+                      )}
+
+                      {formData.skills.length > 0 && (
+                        <div className="mb-4">
+                          <h5 className="text-sm font-medium text-gray-400 mb-2">Skills</h5>
+                          <div className="flex flex-wrap gap-2">
+                            {formData.skills.map((skill, index) => (
+                              <span
+                                key={index}
+                                className="px-2 py-1 bg-green-600/20 text-green-400 rounded text-xs"
+                              >
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {formData.languages.length > 0 && (
+                        <div className="mb-4">
+                          <h5 className="text-sm font-medium text-gray-400 mb-2">Languages</h5>
+                          <div className="flex flex-wrap gap-2">
+                            {formData.languages.map((language, index) => (
+                              <span
+                                key={index}
+                                className="px-2 py-1 bg-blue-600/20 text-blue-400 rounded text-xs"
+                              >
+                                {language}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {formData.hourlyRate && (
+                        <div>
+                          <h5 className="text-sm font-medium text-gray-400 mb-2">Hourly Rate</h5>
+                          <p className="text-white font-semibold">₹{formData.hourlyRate}/hour</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

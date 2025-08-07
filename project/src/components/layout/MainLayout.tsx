@@ -1,28 +1,58 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
-import { Sidebar } from './Sidebar';
-import { Navbar } from './Navbar';
-import { useAuth } from '../../contexts/AuthContext';
+import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
-import { fetchUnreadMessageCount } from '../dashboard/Dashboard';
+import { Navbar } from './Navbar';
+import { Sidebar } from './Sidebar';
+import { useAuth } from '../../contexts/AuthContext';
+import { notificationService } from '../../lib/notification-service';
+import { supabase } from '../../lib/supabase';
 
-import { useNavigate } from 'react-router-dom';
+// Create context for unread messages
+export const UnreadMessagesContext = React.createContext<{
+  unreadMessages: number;
+  refreshUnreadMessages: () => Promise<void>;
+}>({
+  unreadMessages: 0,
+  refreshUnreadMessages: async () => {},
+});
 
-// Unread messages context
-export const UnreadMessagesContext = createContext<{ unreadMessages: number; refreshUnreadMessages: () => Promise<void> }>({ unreadMessages: 0, refreshUnreadMessages: async () => {} });
-export const useUnreadMessages = () => useContext(UnreadMessagesContext);
+export const useUnreadMessages = () => React.useContext(UnreadMessagesContext);
+
+const fetchUnreadMessageCount = async (userId: string) => {
+  try {
+    const { count, error } = await supabase
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('receiver_id', userId)
+      .eq('unread', true);
+    return count || 0;
+  } catch (error) {
+    console.error('Error fetching unread message count:', error);
+    return 0;
+  }
+};
+
+const fetchUnreadNotificationCount = async (userId: string) => {
+  try {
+    return await notificationService.getUnreadCount(userId);
+  } catch (error) {
+    console.error('Error fetching unread notification count:', error);
+    return 0;
+  }
+};
 
 const MainLayout: React.FC = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   console.log('Current user ID:', user?.id);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
 
   const refreshUnreadMessages = async () => {
     if (!user) return;
-    const count = await fetchUnreadMessageCount(user.id);
-    console.log('[refreshUnreadMessages] Unread count:', count);
-    setUnreadMessages(count);
+    const messageCount = await fetchUnreadMessageCount(user.id);
+    const notificationCount = await fetchUnreadNotificationCount(user.id);
+    const totalCount = messageCount + notificationCount;
+    console.log('[refreshUnreadMessages] Unread count:', totalCount, '(messages:', messageCount, 'notifications:', notificationCount, ')');
+    setUnreadMessages(totalCount);
   };
 
   useEffect(() => {

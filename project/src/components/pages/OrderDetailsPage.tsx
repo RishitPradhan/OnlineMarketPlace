@@ -600,10 +600,20 @@ export default function OrderDetailsPage() {
                     <img
                       src={order.freelancer.avatar || `https://ui-avatars.com/api/?name=${order.freelancer.firstName}+${order.freelancer.lastName}&background=10b981&color=fff&size=64`}
                       alt="Freelancer Avatar"
-                      className="w-12 h-12 rounded-full border-2 border-gray-600"
+                      className="w-12 h-12 rounded-full border-2 border-gray-600 cursor-pointer hover:scale-110 transition-transform duration-200"
+                      onClick={() => {
+                        if (order.freelancer?.id) {
+                          navigate(`/user/${order.freelancer.id}`);
+                        }
+                      }}
                     />
                     <div>
-                      <p className="text-gray-200 font-medium">
+                      <p className="text-gray-200 font-medium cursor-pointer hover:text-green-400 transition-colors duration-200"
+                         onClick={() => {
+                           if (order.freelancer?.id) {
+                             navigate(`/user/${order.freelancer.id}`);
+                           }
+                         }}>
                         {order.freelancer.firstName} {order.freelancer.lastName}
                       </p>
                       <p className="text-gray-400 text-sm">Freelancer</p>

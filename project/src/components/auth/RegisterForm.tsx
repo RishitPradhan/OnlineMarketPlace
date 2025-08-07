@@ -8,6 +8,7 @@ import { Input } from '../ui/Input';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { AuthCarousel } from './AuthCarousel';
 
 const registerSchema = z.object({
   firstName: z.string().min(1, 'First name is required').min(2, 'First name must be at least 2 characters'),
@@ -86,27 +87,31 @@ export const RegisterForm: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white to-green-50 dark:from-dark-950 dark:to-dark-900 px-0 py-0">
-      <div className="w-full max-w-4xl bg-white dark:bg-dark-900 rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden">
-        {/* Left: Welcome message */}
-        <div className="hidden md:flex flex-col justify-center items-center bg-green-600 dark:bg-green-800 text-white w-full md:w-1/2 p-10 transition-all duration-500">
-          <div className="h-32 flex flex-col items-center justify-center w-full">
-            <h1 className={`text-4xl md:text-5xl lg:text-6xl font-bold text-white text-center transition-all duration-1000 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>Welcome to FreelanceHub</h1>
-            <p className={`mt-8 text-xl md:text-2xl text-white/90 text-center max-w-xl transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>Unlock your potential. Connect. Create. Succeed.</p>
-          </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-emerald-50 to-green-50 dark:from-slate-900 dark:via-emerald-900/20 dark:to-slate-900 px-4 py-8">
+      <div className="w-full max-w-6xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-slate-700/50 flex flex-col md:flex-row overflow-hidden">
+        {/* Left: Carousel */}
+        <div className="hidden md:flex text-white w-full md:w-1/2 relative overflow-hidden">
+          <AuthCarousel type="register" />
+        </div>
+        {/* Mobile: Simplified carousel */}
+        <div className="md:hidden text-white w-full h-48 relative overflow-hidden">
+          <AuthCarousel type="register" />
         </div>
         {/* Right: Register form */}
-        <div className="w-full md:w-1/2 flex flex-col justify-center items-center p-8 md:p-12">
+        <div className="w-full md:w-1/2 flex flex-col justify-center items-center p-8 md:p-10 lg:p-12 bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm">
           <div className="mb-8 text-center">
-            <span className="inline-block w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mb-2">
-              <svg width="32" height="32" fill="none" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zm0 13.5l-10-5V17a2 2 0 002 2h16a2 2 0 002-2v-6.5l-10 5z" fill="#10b981"/></svg>
-            </span>
-            <h1 className="text-2xl font-bold text-green-700 dark:text-green-400">Create your account</h1>
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-600 to-green-700 dark:from-emerald-500 dark:to-green-600 rounded-2xl mb-6 shadow-lg">
+              <svg width="28" height="28" fill="none" viewBox="0 0 24 24" className="text-white">
+                <path d="M12 2L2 7l10 5 10-5-10-5zm0 13.5l-10-5V17a2 2 0 002 2h16a2 2 0 002-2v-6.5l-10 5z" fill="currentColor"/>
+              </svg>
+            </div>
+            <h1 className="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-200 mb-2">Join FreelanceHub</h1>
+            <p className="text-slate-600 dark:text-slate-400">Create your account to get started</p>
           </div>
           {errorMessage && (
-            <div className="w-full mb-4 flex items-center bg-red-200 border border-red-400 text-red-800 px-4 py-3 rounded-lg shadow-lg animate-pulse">
-              <AlertCircle className="w-5 h-5 mr-2 text-red-600" />
-              <span className="text-base font-semibold">{errorMessage}</span>
+            <div className="w-full mb-6 flex items-center bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl shadow-sm">
+              <AlertCircle className="w-5 h-5 mr-3 text-red-500" />
+              <span className="text-sm font-medium">{errorMessage}</span>
             </div>
           )}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 w-full">
@@ -171,14 +176,14 @@ export const RegisterForm: React.FC = () => {
               </button>
             </div>
             <div>
-              <label className="block text-sm font-medium text-green-800 mb-4">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-4">
                 Choose your path:
               </label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <label className={`relative flex items-center p-6 border-2 rounded-xl cursor-pointer transition-all duration-300 group ${
                   selectedRole === 'client' 
-                    ? 'border-green-500 bg-green-500/10 shadow-lg' 
-                    : 'border-green-200 hover:border-green-500/50 hover:bg-green-100/50'
+                    ? 'border-emerald-500 bg-emerald-500/10 shadow-lg' 
+                    : 'border-emerald-200 hover:border-emerald-500/50 hover:bg-emerald-100/50 dark:border-emerald-700 dark:hover:border-emerald-600 dark:hover:bg-emerald-800/50'
                 }`}>
                   <input
                     {...register('role')}
@@ -186,19 +191,19 @@ export const RegisterForm: React.FC = () => {
                     value="client"
                     className="sr-only"
                   />
-                  <Users className="w-8 h-8 text-green-600 mr-4 group-hover:scale-110 transition-transform" />
+                  <Users className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mr-4 group-hover:scale-110 transition-transform" />
                   <div>
-                    <p className="font-semibold text-green-800 mb-1">Elite Client</p>
-                    <p className="text-sm text-green-600">Access premium talent</p>
+                    <p className="font-semibold text-slate-800 dark:text-slate-200 mb-1">Elite Client</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Access premium talent</p>
                   </div>
                   {selectedRole === 'client' && (
-                    <Sparkles className="w-5 h-5 text-green-600 absolute top-2 right-2" />
+                    <Sparkles className="w-5 h-5 text-emerald-600 dark:text-emerald-400 absolute top-2 right-2" />
                   )}
                 </label>
                 <label className={`relative flex items-center p-6 border-2 rounded-xl cursor-pointer transition-all duration-300 group ${
                   selectedRole === 'freelancer' 
-                    ? 'border-green-500 bg-green-500/10 shadow-lg' 
-                    : 'border-green-200 hover:border-green-500/50 hover:bg-green-100/50'
+                    ? 'border-emerald-500 bg-emerald-500/10 shadow-lg' 
+                    : 'border-emerald-200 hover:border-emerald-500/50 hover:bg-emerald-100/50 dark:border-emerald-700 dark:hover:border-emerald-600 dark:hover:bg-emerald-800/50'
                 }`}>
                   <input
                     {...register('role')}
@@ -206,36 +211,36 @@ export const RegisterForm: React.FC = () => {
                     value="freelancer"
                     className="sr-only"
                   />
-                  <Briefcase className="w-8 h-8 text-green-600 mr-4 group-hover:scale-110 transition-transform" />
+                  <Briefcase className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mr-4 group-hover:scale-110 transition-transform" />
                   <div>
-                    <p className="font-semibold text-green-800 mb-1">Pro Freelancer</p>
-                    <p className="text-sm text-green-600">Showcase your expertise</p>
+                    <p className="font-semibold text-slate-800 dark:text-slate-200 mb-1">Pro Freelancer</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Showcase your expertise</p>
                   </div>
                   {selectedRole === 'freelancer' && (
-                    <Sparkles className="w-5 h-5 text-green-600 absolute top-2 right-2" />
+                    <Sparkles className="w-5 h-5 text-emerald-600 dark:text-emerald-400 absolute top-2 right-2" />
                   )}
                 </label>
               </div>
               {errors.role && (
-                <p className="mt-2 text-sm text-red-400 dark:text-red-400 text-red-600">{errors.role.message}</p>
+                <p className="mt-2 text-sm text-red-500 dark:text-red-400">{errors.role.message}</p>
               )}
             </div>
             <Button
               type="submit"
               loading={isLoading}
-              className="w-full group"
+              className="w-full group bg-gradient-to-r from-emerald-600 to-green-700 hover:from-emerald-700 hover:to-green-800 dark:from-emerald-500 dark:to-green-600 dark:hover:from-emerald-600 dark:hover:to-green-700 shadow-lg"
               size="lg"
             >
-              {isLoading ? 'Registering...' : 'Create Account'}
+              {isLoading ? 'Creating Account...' : 'Create Account'}
               <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
             </Button>
             <div className="text-center">
-              <p className="text-green-600">
+              <p className="text-slate-600 dark:text-slate-400">
                 Already have an account?{' '}
                 <button
                   type="button"
                   onClick={handleSwitchToLogin}
-                  className="text-green-600 hover:text-green-500 font-medium transition-colors"
+                  className="text-slate-800 dark:text-slate-200 hover:text-slate-600 dark:hover:text-slate-400 font-medium transition-colors"
                 >
                   Sign in
                 </button>

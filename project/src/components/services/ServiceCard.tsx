@@ -1,10 +1,15 @@
-import { Card, CardContent, CardFooter, CardHeader } from '../ui/Card';
-import { Button } from '../ui/Button';
-import { Clock, DollarSign, Edit, Trash, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
-import { useState } from 'react';
-import { serviceManagement } from '../../lib/service-management';
-import ServiceForm from './ServiceForm';
+import React, { useState } from 'react';
+import { Star, Clock, Edit, Trash, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { serviceManagement } from '../../lib/service-management';
+
+interface Plan {
+  name: string;
+  price: number;
+  desc: string;
+  features: string[];
+  delivery: string;
+}
 
 interface ServiceCardProps {
   service: any;
@@ -12,17 +17,100 @@ interface ServiceCardProps {
   isOwner: boolean;
 }
 
-export default function ServiceCard({ service, onUpdate, isOwner }: ServiceCardProps) {
-  console.log('ServiceCard data:', service);
+// Demo images from public folder - only using your provided images
+const demoImages = [
+  '/OIPbg.png',
+  '/OIPfdf.png',
+  '/OIPfef.png',
+  '/OIPefe.png',
+  '/OIPcdf.png',
+  '/OIPnc.png',
+  '/OIPb.png',
+  '/OIPg.png',
+  '/why-trust-slideuplift-presentation-design-services-6.png',
+  '/OIPn.png',
+  '/OIPf.png',
+  '/OIPdf.png',
+  '/OIPvg.png',
+  '/OIPfg.png',
+  '/wp9517064.png',
+  '/representations_user_experience_interface_design_23_2150038900_74c059d2e1.png',
+  '/OIP78.png',
+  '/R.png',
+  '/OIPuj.png',
+  '/graphic-design.png',
+  '/OIPj.png',
+  '/Thumbnail-1.png',
+  '/seo-techniques.png',
+  '/Facility_Management_Software_fd01278999.png',
+  '/OIPh.png',
+  '/OIP34.png',
+  '/OIPt.png',
+  '/banner-content-writing.png',
+  '/6.png',
+  '/business-women-work-computers-write-notepad-with-pen-calculate-financial-statements-office_931309-4329.png',
+  '/574-5741689_content-writing-services-png-transparent-png.png',
+  '/OIP9.png',
+  '/OIP.8png.png',
+  '/OIP7.png',
+  '/OIP6.png',
+  '/OIP5.png',
+  '/OIP4.png',
+  '/OIP3.png',
+  '/OIP2.png',
+  '/7-Tips-to-Localize-and-Translate-Apps.png',
+  '/Social-media-marketing-01-1024x536.png',
+  '/social-media-engagement_839035-839915.png',
+  '/datadriven-social-media-management-for-startups-ihh.png',
+  '/featured_homepage.png',
+  '/OIP1.png',
+  '/pexels-francesco-paggiaro-2111015-scaled.png',
+  '/wp4269240.png',
+  '/InTheStudio.png',
+  '/music-8589292_640.png',
+  '/OIP.png',
+  '/TharLU.png',
+  '/Artboard-22.png'
+];
+
+// Function to get random demo image based on service ID for consistency
+const getRandomDemoImage = (serviceId: string) => {
+  const index = parseInt(serviceId.slice(-2), 16) % demoImages.length;
+  return demoImages[index];
+};
+
+const ServiceCard: React.FC<ServiceCardProps> = ({ service, onUpdate, isOwner }) => {
   const navigate = useNavigate();
-  const [showEditDialog, setShowEditDialog] = useState(false);
   const [loading, setLoading] = useState(false);
-  // Clean image logic
+  const [imgIdx, setImgIdx] = useState(0);
+
+  // Clean image logic - handle all possible image field variations
   const images = Array.isArray(service.images) && service.images.length > 0
     ? service.images
-    : (service.imageurl ? [service.imageurl] : []);
-  const defaultThumb = '/gigbanner.webp';
-  const [imgIdx, setImgIdx] = useState(0);
+    : (service.imageUrl || service.imageurl || service.image_url ? [service.imageUrl || service.imageurl || service.image_url] : []);
+
+  const defaultThumb = getRandomDemoImage(service.id);
+
+  // Parse plans and get the lowest price
+  const getLowestPrice = () => {
+    if (service.plans) {
+      try {
+        const plans: Plan[] = typeof service.plans === 'string' 
+          ? JSON.parse(service.plans) 
+          : service.plans;
+        
+        if (plans && plans.length > 0) {
+          const prices = plans.map(plan => plan.price);
+          return Math.min(...prices);
+        }
+      } catch (e) {
+        console.error('Error parsing plans:', e);
+      }
+    }
+    return service.price || 0;
+  };
+
+  const lowestPrice = getLowestPrice();
 
   const handleDelete = async () => {
     if (!window.confirm('Are you sure you want to delete this service?')) return;
@@ -39,24 +127,22 @@ export default function ServiceCard({ service, onUpdate, isOwner }: ServiceCardP
     }
   };
 
-  const handleServiceUpdated = () => {
-    setShowEditDialog(false);
-    onUpdate();
-  };
-
   const handleOrderNow = () => {
     navigate(`/orders/new?serviceId=${service.id}`);
   };
 
   return (
-    <Card className="overflow-hidden shadow-xl rounded-2xl border border-green-200 bg-green-50 dark:bg-dark-800 hover:shadow-2xl transition-shadow duration-300">
-      {/* Image */}
-      <div className="relative aspect-video w-full overflow-hidden group bg-green-100 dark:bg-dark-700">
+    <div className="bg-white dark:bg-dark-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group overflow-hidden border border-green-100 dark:border-dark-700">
+      {/* Thumbnail */}
+      <div className="relative h-48 overflow-hidden">
         <img
           src={images[imgIdx] || defaultThumb}
           alt={service.title}
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 rounded-t-2xl"
-          onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = defaultThumb; }}
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          onError={(e) => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = defaultThumb;
+          }}
         />
         {images.length > 1 && (
           <>
@@ -80,66 +166,82 @@ export default function ServiceCard({ service, onUpdate, isOwner }: ServiceCardP
             </div>
           </>
         )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
       </div>
-      <CardHeader className="space-y-2 pb-2">
-        <div className="flex justify-between items-start">
-          <div>
-            <h3 className="text-2xl font-bold text-green-900 dark:text-green-200 mb-1 leading-tight">{service.title}</h3>
-            <p className="text-xs text-gray-600 dark:text-gray-300 mb-1">by <span className="font-semibold text-green-700 dark:text-green-300">{service.freelancer?.firstName} {service.freelancer?.lastName}</span></p>
-          </div>
-          <span className="inline-block bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200 px-3 py-1 rounded-full text-xs font-semibold shadow">{service.category}</span>
+
+      {/* Content */}
+      <div className="p-4">
+        <div className="flex justify-between items-start mb-2">
+          <h3 className="font-semibold text-gray-800 dark:text-gray-200 line-clamp-2">
+            {service.title}
+          </h3>
+          <span className="inline-block bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200 px-2 py-1 rounded-full text-xs font-semibold">
+            {service.category}
+          </span>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4 pt-0">
-        <p className="text-gray-800 dark:text-gray-200 text-base line-clamp-3 mb-2">{service.description}</p>
-        <div className="flex items-center space-x-4 text-sm text-gray-700 dark:text-gray-300">
+        
+        <p className="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">
+          {service.description}
+        </p>
+
+        {/* Rating and Reviews */}
+        <div className="flex items-center gap-2 mb-3">
           <div className="flex items-center">
-            <Clock className="h-4 w-4 mr-1 text-green-500" />
-            <span className="font-semibold text-green-700">{service.deliverytime}</span> days delivery
+            <Star className="w-4 h-4 text-yellow-400 fill-current" />
+            <span className="ml-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+              {service.rating || 4.8}
+            </span>
           </div>
-          <div className="flex items-center font-semibold text-green-700">
-            <DollarSign className="h-4 w-4 mr-1" />
-            <span className="text-lg">{service.price?.toFixed ? service.price.toFixed(2) : service.price}</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            ({service.reviewCount || 12} reviews)
+          </span>
+        </div>
+
+        {/* Price and Delivery */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-bold text-green-600 dark:text-green-400">
+              ₹{lowestPrice}
+            </span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">starting from</span>
+          </div>
+          
+          <div className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
+            <Clock className="w-4 h-4" />
+            <span>{service.deliveryTime || service.deliverytime || '7 days'}</span>
           </div>
         </div>
-        {service.tags && service.tags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {service.tags.map((tag: string) => (
-              <span key={tag} className="inline-block border border-green-300 text-green-700 px-3 py-1 rounded-full text-xs font-medium bg-green-50 shadow-sm">{tag}</span>
-            ))}
-          </div>
-        )}
-      </CardContent>
-      <CardFooter className="flex justify-between pt-4 border-t bg-green-50 dark:bg-dark-800">
+
+        {/* Action Buttons */}
         {isOwner ? (
-          <div className="flex space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
+          <div className="flex gap-2">
+            <button
               onClick={() => navigate(`/services/edit/${service.id}`)}
               disabled={loading}
-              className="border-green-500 text-green-700 hover:bg-green-100 hover:text-green-900 shadow"
+              className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
             >
-              <Edit className="h-4 w-4 mr-1" />
+              <Edit className="w-4 h-4 inline mr-1" />
               Edit
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
+            </button>
+            <button
               onClick={handleDelete}
               disabled={loading}
-              className="bg-red-500 text-white hover:bg-red-600 shadow border-none"
+              className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium"
             >
-              <Trash className="h-4 w-4 mr-1" />
-              Delete
-            </Button>
+              <Trash className="w-4 h-4" />
+            </button>
           </div>
         ) : (
-          <Button onClick={handleOrderNow} className="bg-green-500 hover:bg-green-600 text-white font-bold px-6 py-2 rounded-lg shadow">
+          <button
+            onClick={handleOrderNow}
+            className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition"
+          >
             Order Now
-          </Button>
+          </button>
         )}
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   );
-}
+};
+
+export default ServiceCard;

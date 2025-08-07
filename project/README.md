@@ -1,157 +1,117 @@
-# FreelanceHub - Freelance Marketplace
+# Online Marketplace Platform
 
-A comprehensive Fiverr-like freelance marketplace built with React, TypeScript, Tailwind CSS, and Supabase.
+A modern, full-stack online marketplace platform built with React, TypeScript, and Supabase.
+
+## Recent Updates
+
+### Order Management Fixes
+- ✅ Fixed order creation and retrieval issues
+- ✅ Improved error handling in order management
+- ✅ Enhanced order page to properly display orders
+- ✅ Updated payment flow to create orders correctly
+
+### Code Cleanup
+- ✅ Removed redundant payment components (CardPaymentPage, UPIPaymentPage, SimplePaymentForm, etc.)
+- ✅ Deleted test files and debug scripts
+- ✅ Cleaned up unnecessary SQL files
+- ✅ Removed TestAuth component
+- ✅ Streamlined payment flow to use only PremiumPaymentPage and PaymentSuccessPage
+
+### Payment System
+- ✅ PremiumPaymentPage: Main payment interface with card and UPI options
+- ✅ PaymentSuccessPage: Success page with order details and navigation
+- ✅ Proper order creation during payment process
+- ✅ Enhanced error handling and user feedback
 
 ## Features
 
-- 🔐 **Authentication System**: JWT-based authentication with role-based access control
-- 👥 **Multi-Role Support**: Client, Freelancer, and Admin roles
-- 📱 **Responsive Design**: Mobile-first design with Tailwind CSS
-- 🎨 **Modern UI**: Clean, professional interface with smooth animations
-- 🔒 **Secure**: Form validation with Zod and secure API endpoints
-- 📊 **Dashboards**: Role-specific dashboards with analytics
-- 💼 **Extensible**: Clean architecture ready for additional features
+### Core Functionality
+- **User Authentication**: Secure login/register with email confirmation
+- **Service Management**: Create, edit, and manage freelance services
+- **Order System**: Complete order lifecycle from creation to completion
+- **Payment Processing**: Integrated payment system with multiple options
+- **Real-time Messaging**: Chat system for clients and freelancers
+- **Review System**: Rate and review completed orders
 
-## Tech Stack
+### User Roles
+- **Clients**: Browse services, place orders, manage payments
+- **Freelancers**: Create services, receive orders, manage work
 
-- **Frontend**: React 18, TypeScript, Tailwind CSS
-- **Backend**: Node.js, Express.js
-- **Database**: Supabase (PostgreSQL)
-- **Authentication**: JWT
-- **Forms**: React Hook Form + Zod validation
-- **Icons**: Lucide React
-- **Routing**: React Router DOM
+### Payment Methods
+- Credit/Debit Cards
+- UPI Payments
+- Secure transaction processing
 
-## Backend Server
+## Technology Stack
 
-The backend server provides the following API endpoints:
-
-- `POST /api/create-payment-intent` - Create Stripe payment intents
-- `POST /api/notify-freelancer` - Send notifications to freelancers
-- `POST /api/create-upi-payment` - Handle UPI payments
-
-**Note**: The server will work without Stripe configuration for development purposes, but payment features will be limited.
-
-### Stripe Configuration
-
-To enable real payment processing:
-
-1. **Option 1: Use the provided scripts** (Recommended)
-   ```bash
-   # PowerShell
-   .\start-server-with-stripe.ps1
-   
-   # Windows Batch
-   start-server-with-stripe.bat
-   
-   # npm script
-   npm run server:stripe
-   ```
-
-2. **Option 2: Set environment variables manually**
-   ```bash
-   # PowerShell
-   $env:STRIPE_SECRET_KEY="your_stripe_secret_key"
-   node server.cjs
-   
-   # Windows Command Prompt
-   set STRIPE_SECRET_KEY=your_stripe_secret_key
-   node server.cjs
-   ```
-
-3. **Option 3: Create a .env file**
-   Create a `.env` file in the project root with:
-   ```
-   STRIPE_SECRET_KEY=your_stripe_secret_key
-   PORT=3001
-   NODE_ENV=development
-   ```
-
-**Current Setup**: Your Stripe test key is already configured in the startup scripts.
+- **Frontend**: React 18, TypeScript, Vite
+- **Styling**: Tailwind CSS, Custom CSS
+- **Backend**: Supabase (PostgreSQL, Auth, Real-time)
+- **Payment**: Stripe integration
+- **Deployment**: Vercel-ready
 
 ## Getting Started
 
-### Prerequisites
-
-- Node.js 18+ 
-- npm or yarn
-- Supabase account
-
-### Installation
-
-1. Clone the repository
-2. Install dependencies:
+1. **Install Dependencies**
    ```bash
    npm install
    ```
 
-3. Set up environment variables:
-   ```bash
-   cp .env.example .env
+2. **Environment Setup**
+   Create a `.env` file with your Supabase credentials:
    ```
-   Fill in your Supabase credentials.
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
 
-4. Set up the database:
-   - Create a new Supabase project
-   - Run the migration files in `/supabase/migrations/`
-
-5. Start the development server:
+3. **Start Development Server**
    ```bash
    npm run dev
    ```
 
-6. Start the backend server (in a separate terminal):
-   ```bash
-   # Without Stripe (mock payments):
-   npm run server
-   npm run start:server
-   
-   # With Stripe (real payments):
-   npm run server:stripe
-   
-   # Or use the provided scripts:
-   # Windows: start-server.bat (mock) or start-server-with-stripe.bat (real)
-   # PowerShell: .\start-server.ps1 (mock) or .\start-server-with-stripe.ps1 (real)
-   ```
-
-   The backend server will run on http://localhost:3001
+4. **Database Setup**
+   Run the Supabase migrations in the `supabase/migrations/` directory.
 
 ## Project Structure
 
 ```
 src/
 ├── components/
-│   ├── auth/           # Authentication components
-│   ├── dashboard/      # Dashboard components
-│   ├── layout/         # Layout components
-│   ├── ui/             # Reusable UI components
-│   └── common/         # Common components
-├── contexts/           # React contexts
-├── lib/               # Utility functions
-├── types/             # TypeScript types
-└── hooks/             # Custom hooks
+│   ├── auth/          # Authentication components
+│   ├── dashboard/     # Dashboard and profile components
+│   ├── home/          # Homepage components
+│   ├── layout/        # Layout components
+│   ├── pages/         # Main page components
+│   ├── payments/      # Payment components (PremiumPaymentPage, PaymentSuccessPage)
+│   └── ui/            # Reusable UI components
+├── contexts/          # React contexts
+├── lib/              # Utility libraries
+└── types/            # TypeScript type definitions
 ```
 
-## Features Roadmap
+## Key Components
 
-- [ ] Gig Creation & Management
-- [ ] Order Management System
-- [ ] Real-time Messaging
-- [ ] Payment Integration (Stripe)
-- [ ] Review & Rating System
-- [ ] File Upload & Management
-- [ ] Advanced Search & Filtering
-- [ ] Notification System
-- [ ] Admin Panel
-- [ ] Analytics Dashboard
+### Payment Flow
+1. **PremiumPaymentPage**: Main payment interface
+2. **PaymentSuccessPage**: Success confirmation with order details
+3. **Order Management**: Automatic order creation during payment
 
-## Contributing
+### Order Management
+- **MyOrdersPage**: View and manage orders
+- **OrderDetailsPage**: Detailed order view with actions
+- **order-management.ts**: Backend order operations
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+## Development Notes
 
-## License
+- All payment components have been streamlined to use only PremiumPaymentPage and PaymentSuccessPage
+- Test files and debug scripts have been removed
+- Order creation is now properly integrated with the payment flow
+- Enhanced error handling throughout the application
 
-This project is licensed under the MIT License.
+## Deployment
+
+The application is ready for deployment on Vercel with the included `vercel.json` configuration.
+
+## Support
+
+For issues or questions, please check the Supabase dashboard for database-related problems and the browser console for frontend errors.

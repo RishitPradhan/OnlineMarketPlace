@@ -349,14 +349,13 @@ function getRandomColor(id: string) {
   return colors[id.charCodeAt(0) % colors.length];
 }
 
-// ChatSidebar: shows users and groups, allows selection
+// ChatSidebar: shows users, allows selection
 const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, currentUser }) => {
   const { refreshUnreadMessages } = useUnreadMessages();
   const [users, setUsers] = useState<UserItem[]>([]);
   const [recentChats, setRecentChats] = useState<UserItem[]>([]);
-  const [groups, setGroups] = useState<GroupItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState<'users' | 'groups' | 'recent'>('recent');
+  const [activeTab, setActiveTab] = useState<'users' | 'recent'>('recent');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -496,17 +495,6 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
     return () => clearTimeout(timeout);
   }, [searchTerm, currentUser.id]);
 
-  useEffect(() => {
-    // Fetch groups for current user (unchanged)
-    supabase
-      .from('group_members')
-      .select('group_id, groups (id, name)')
-      .eq('user_id', currentUser.id)
-      .then(({ data, error }) => {
-        setGroups((data as any[] || []).map(g => g.groups as GroupItem));
-      });
-  }, [currentUser.id]);
-
   // 1. Add state to track unread counts for each user
   const [unreadMap, setUnreadMap] = useState<{ [userId: string]: number }>({});
 
@@ -555,10 +543,6 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
     return <LoadingScreen message="Loading user data..." size="sm" />;
   }
 
-  const filteredGroups = groups.filter(group => 
-    group.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   return (
     <div className="h-full flex flex-col">
       {/* Search Bar */}
@@ -598,16 +582,6 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
           }`}
         >
           Users ({users.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('groups')}
-          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-            activeTab === 'groups' 
-              ? 'text-green-400 border-b-2 border-green-400 bg-green-400/10' 
-              : 'text-green-400/60 hover:text-green-400'
-          }`}
-        >
-          Groups ({filteredGroups.length})
         </button>
       </div>
 
@@ -650,7 +624,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
               </div>
             )}
           </div>
-        ) : activeTab === 'users' ? (
+        ) : (
           <div className="p-4">
             {loading ? (
               <div className="text-center py-8 text-green-400">Loading...</div>
@@ -689,10 +663,6 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ onSelect, selectedChat, curre
               </div>
             )}
           </div>
-        ) : (
-          <div className="p-4">
-            {/* Groups logic unchanged */}
-          </div>
         )}
       </div>
     </div>
@@ -718,15 +688,22 @@ function ChatBox({ selectedChat, currentUser, showHeader = true }: { selectedCha
   // Fetch chatUser if selectedChat.type === 'user'
   useEffect(() => {
     if (selectedChat && selectedChat.type === 'user') {
+      console.log('ChatBox fetching user data for ID:', selectedChat.id);
       supabase
         .from('users')
         .select('id, first_name, last_name')
         .eq('id', selectedChat.id)
         .single()
         .then(({ data, error }) => {
-          if (data) {
+          console.log('ChatBox user data fetched:', data);
+          console.log('ChatBox user error:', error);
+          if (error) {
+            console.error('Error fetching user data:', error);
+            setChatUser(null);
+          } else if (data) {
             setChatUser(data);
           } else {
+            console.log('No user data found for ID:', selectedChat.id);
             setChatUser(null);
           }
         });
@@ -744,56 +721,45 @@ function ChatBox({ selectedChat, currentUser, showHeader = true }: { selectedCha
     // Fetch messages for the selected chat
     const fetchMessages = async () => {
       try {
-        let query;
-        if (selectedChat.type === 'user') {
-          // For user-to-user messages, we need to get messages between these two specific users
-          const queryString = `and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedChat.id}),and(sender_id.eq.${selectedChat.id},receiver_id.eq.${currentUser.id})`;
-          
-          query = supabase
-            .from('messages')
-            .select('*')
-            .or(queryString)
-            .order('created_at', { ascending: true });
-        } else {
-          query = supabase
-            .from('messages')
-            .select('*')
-            .eq('group_id', selectedChat.id)
-            .order('created_at', { ascending: true });
-        }
+        // For user-to-user messages, we need to get messages between these two specific users
+        const queryString = `and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedChat.id}),and(sender_id.eq.${selectedChat.id},receiver_id.eq.${currentUser.id})`;
+        
+        const query = supabase
+          .from('messages')
+          .select('*')
+          .or(queryString)
+          .order('created_at', { ascending: true });
 
         const { data, error } = await query;
         
         if (error) {
           console.error('Error fetching messages:', error);
           // Fallback sample messages when database fetch fails
-          if (selectedChat.type === 'user') {
-            const sampleMessages = [
-              {
-                id: '1',
-                sender_id: selectedChat.id,
-                receiver_id: currentUser.id,
-                content: 'Hey! I have a project I need help with.',
-                created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString()
-              },
-              {
-                id: '2',
-                sender_id: currentUser.id,
-                receiver_id: selectedChat.id,
-                content: 'Hi! I would love to help. What kind of project is it?',
-                created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString()
-              },
-              {
-                id: '3',
-                sender_id: selectedChat.id,
-                receiver_id: currentUser.id,
-                content: 'It\'s a website redesign. Can we discuss the details?',
-                created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString()
-              }
-            ];
-            if (mounted) {
-              setMessages(sampleMessages);
+          const sampleMessages = [
+            {
+              id: '1',
+              sender_id: selectedChat.id,
+              receiver_id: currentUser.id,
+              content: 'Hey! I have a project I need help with.',
+              created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString()
+            },
+            {
+              id: '2',
+              sender_id: currentUser.id,
+              receiver_id: selectedChat.id,
+              content: 'Hi! I would love to help. What kind of project is it?',
+              created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString()
+            },
+            {
+              id: '3',
+              sender_id: selectedChat.id,
+              receiver_id: currentUser.id,
+              content: 'It\'s a website redesign. Can we discuss the details?',
+              created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString()
             }
+          ];
+          if (mounted) {
+            setMessages(sampleMessages);
           }
         } else if (mounted) {
           setMessages(data || []);
@@ -819,10 +785,8 @@ function ChatBox({ selectedChat, currentUser, showHeader = true }: { selectedCha
           const newMessage = payload.new;
           
           // Check if this message belongs to the current chat
-          const isRelevant = selectedChat.type === 'user' 
-            ? (newMessage.sender_id === currentUser.id && newMessage.receiver_id === selectedChat.id) ||
-              (newMessage.sender_id === selectedChat.id && newMessage.receiver_id === currentUser.id)
-            : newMessage.group_id === selectedChat.id;
+          const isRelevant = (newMessage.sender_id === currentUser.id && newMessage.receiver_id === selectedChat.id) ||
+            (newMessage.sender_id === selectedChat.id && newMessage.receiver_id === currentUser.id);
           
           if (isRelevant) {
             setMessages(msgs => {
@@ -1040,7 +1004,16 @@ function ChatBox({ selectedChat, currentUser, showHeader = true }: { selectedCha
               }
             }}
           >
-            <h3 className="text-white font-semibold">{selectedChat?.name}</h3>
+            <h3 className="text-white font-semibold">
+              {selectedChat?.type === 'user' && chatUser 
+                ? `${chatUser.first_name} ${chatUser.last_name}` 
+                : selectedChat?.name || 'Unknown User'}
+            </h3>
+            {selectedChat?.type === 'user' && (
+              <p className="text-green-400/40 text-xs">
+                Debug: selectedChat.name="{selectedChat?.name}" | chatUser="{chatUser?.first_name} {chatUser?.last_name}" | chatUser exists: {chatUser ? 'yes' : 'no'}
+              </p>
+            )}
             <p className="text-green-400/60 text-sm">
               {selectedChat?.type === 'user' ? 'Online' : 'Group'}
             </p>

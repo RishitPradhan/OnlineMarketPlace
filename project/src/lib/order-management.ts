@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import type { ApiResponse, Order, OrderStatus, OrderAnalytics } from "../types";
+import { notificationService } from "./notification-service";
 
 export const orderManagement = {
   async createOrder(order: Omit<Order, 'id' | 'status' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Order>> {
@@ -28,10 +29,25 @@ export const orderManagement = {
 
       console.log('Supabase insert result:', { data, error });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
+      if (!data) {
+        throw new Error('No data returned from order creation');
+      }
 
       const mappedData = this.mapOrderFromDB(data);
       console.log('Mapped order data:', mappedData);
+
+      // Create notification for order creation
+      try {
+        await notificationService.createOrderNotification(mappedData, 'order_created');
+      } catch (notificationError) {
+        console.error('Error creating order notification:', notificationError);
+        // Don't fail the order creation if notification fails
+      }
 
       return {
         success: true,
@@ -41,7 +57,7 @@ export const orderManagement = {
       console.error('createOrder error:', error);
       return {
         success: false,
-        error: error.message
+        error: error.message || 'Failed to create order'
       };
     }
   },
@@ -60,9 +76,30 @@ export const orderManagement = {
 
       if (error) throw error;
 
+      const mappedData = this.mapOrderFromDB(data);
+
+      // Create notification for order status update
+      try {
+        let notificationType: 'order_updated' | 'order_completed' | 'order_cancelled';
+        switch (status) {
+          case 'completed':
+            notificationType = 'order_completed';
+            break;
+          case 'cancelled':
+            notificationType = 'order_cancelled';
+            break;
+          default:
+            notificationType = 'order_updated';
+        }
+        await notificationService.createOrderNotification(mappedData, notificationType);
+      } catch (notificationError) {
+        console.error('Error creating order notification:', notificationError);
+        // Don't fail the order update if notification fails
+      }
+
       return {
         success: true,
-        data: this.mapOrderFromDB(data)
+        data: mappedData
       };
     } catch (error: any) {
       return {
@@ -153,6 +190,7 @@ export const orderManagement = {
     try {
       console.log('listOrders called with filters:', filters);
       
+      // Build the query to get orders first
       let query = supabase
         .from('orders')
         .select('*');
@@ -170,9 +208,53 @@ export const orderManagement = {
       const { data, error } = await query;
       console.log('Supabase query result:', { data, error });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error in listOrders:', error);
+        throw error;
+      }
 
-      const mappedData = data.map(this.mapOrderFromDB);
+      if (!data) {
+        console.log('No orders found');
+        return {
+          success: true,
+          data: []
+        };
+      }
+
+      // Fetch related data for each order
+      const ordersWithData = await Promise.all(
+        data.map(async (order) => {
+          // Get service data
+          const { data: serviceData } = await supabase
+            .from('services')
+            .select('*')
+            .eq('id', order.serviceid)
+            .single();
+
+          // Get client data
+          const { data: clientData } = await supabase
+            .from('users')
+            .select('id, first_name, last_name, email, avatar')
+            .eq('id', order.clientid)
+            .single();
+
+          // Get freelancer data
+          const { data: freelancerData } = await supabase
+            .from('users')
+            .select('id, first_name, last_name, email, avatar')
+            .eq('id', order.freelancerid)
+            .single();
+
+          return {
+            ...order,
+            service: serviceData,
+            client: clientData,
+            freelancer: freelancerData
+          };
+        })
+      );
+
+      const mappedData = ordersWithData.map(this.mapOrderFromDB);
       console.log('Mapped orders:', mappedData);
 
       return {
@@ -183,7 +265,7 @@ export const orderManagement = {
       console.error('listOrders error:', error);
       return {
         success: false,
-        error: error.message
+        error: error.message || 'Failed to load orders'
       };
     }
   },
@@ -193,7 +275,7 @@ export const orderManagement = {
       const { data: orders, error } = await supabase
         .from('orders')
         .select('status')
-        .or(`clientId.eq.${userId},freelancerId.eq.${userId}`);
+        .or(`clientid.eq.${userId},freelancerid.eq.${userId}`);
 
       if (error) throw error;
 

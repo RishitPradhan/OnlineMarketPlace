@@ -33,7 +33,6 @@ export const Sidebar: React.FC<SidebarProps & { unreadNotifications?: number }> 
     { id: 'my-gigs', label: 'My Services', icon: Hammer, route: '/services' },
     { id: 'my-orders', label: 'My Orders', icon: ClipboardList, route: '/my-orders' },
     { id: 'messages', label: 'Messages', icon: MessageCircle, route: '/messages' },
-    { id: 'profile', label: 'Profile', icon: User, route: '/profile-completion' },
   ];
 
   return (

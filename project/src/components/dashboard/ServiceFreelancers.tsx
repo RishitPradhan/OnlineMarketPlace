@@ -19,6 +19,14 @@ interface Freelancer {
   completionRate: number;
 }
 
+interface Plan {
+  name: string;
+  price: number;
+  desc: string;
+  features: string[];
+  delivery: string;
+}
+
 type SortOption = 'rating' | 'price-low' | 'price-high' | 'reviews' | 'completion';
 type FilterOption = 'all' | 'top-rated' | 'under-1000' | 'under-2000' | 'fast-delivery';
 
@@ -61,18 +69,70 @@ export const ServiceFreelancers: React.FC = () => {
           query = query.ilike('category', `%${service.title}%`);
         }
         query = query.eq('isactive', true);
-        console.log('Fetching services for category:', service?.category || service?.title);
         const { data, error } = await query;
-        console.log('Fetched realServices:', data, 'Error:', error);
         // Fetch freelancer avatars for each service
         const servicesWithAvatars = await Promise.all((data || []).map(async (svc: any) => {
           if (svc.freelancerid) {
-            const { data: freelancer } = await supabase
+            const { data: freelancer, error: freelancerError } = await supabase
               .from('users')
-              .select('avatar, first_name')
+              .select('avatar, first_name, last_name')
               .eq('id', svc.freelancerid)
               .single();
-            return { ...svc, freelancer: { ...freelancer } };
+            
+            if (freelancerError) {
+              // Create dummy freelancer data based on service ID for consistent display
+              const dummyNames = [
+                { first_name: 'John', last_name: 'Doe' },
+                { first_name: 'Jane', last_name: 'Smith' },
+                { first_name: 'Mike', last_name: 'Johnson' },
+                { first_name: 'Sarah', last_name: 'Wilson' },
+                { first_name: 'David', last_name: 'Brown' },
+                { first_name: 'Lisa', last_name: 'Davis' },
+                { first_name: 'Tom', last_name: 'Miller' },
+                { first_name: 'Emma', last_name: 'Taylor' },
+                { first_name: 'Alex', last_name: 'Anderson' },
+                { first_name: 'Rachel', last_name: 'White' }
+              ];
+              
+              // Use service ID to consistently assign a dummy name
+              const nameIndex = parseInt(svc.id.slice(-1), 16) % dummyNames.length;
+              const dummyFreelancer = dummyNames[nameIndex];
+              
+              return { 
+                ...svc, 
+                freelancer: dummyFreelancer,
+                reviews: generateDummyReviews(svc.id)
+              };
+            }
+            
+            // Fetch reviews for this service
+            const { data: reviews, error: reviewsError } = await supabase
+              .from('reviews')
+              .select('rating, comment, created_at')
+              .eq('service_id', svc.id);
+            
+            if (reviewsError) {
+              console.log('Error fetching reviews:', reviewsError);
+            }
+            
+            // Only use real reviews, no dummy reviews
+            const finalReviews = reviews || [];
+            
+            // Calculate average rating and review count
+            const reviewCount = finalReviews.length;
+            const averageRating = finalReviews.length > 0 
+              ? finalReviews.reduce((sum: number, review: any) => sum + review.rating, 0) / finalReviews.length
+              : 0; // No rating when no reviews
+            
+            return { 
+              ...svc, 
+              freelancer: { 
+                ...freelancer,
+                rating: averageRating,
+                reviewCount: reviewCount
+              },
+              reviews: finalReviews
+            };
           }
           return svc;
         }));
@@ -82,10 +142,8 @@ export const ServiceFreelancers: React.FC = () => {
         setError(err.message || 'Unknown error');
       } finally {
         setLoading(false);
-        console.log('Set loading to false (finally)');
       }
     }
-    console.log('fetchServices useEffect running, service:', service);
     fetchServices();
   }, [service]);
 
@@ -94,42 +152,6 @@ export const ServiceFreelancers: React.FC = () => {
   const [sortBy, setSortBy] = useState<SortOption>('rating');
   const [filterBy, setFilterBy] = useState<FilterOption>('all');
   const [showFilters, setShowFilters] = useState(false);
-
-  // Use a single default thumbnail for all freelancers
-  const gigBannerUrl = '/gigbanner.webp';
-
-  // Use a set of actual, static Unsplash portrait images for avatars (50+ unique)
-  const staticAvatars = [
-    'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=facearea&w=150&h=150&q=80',
-    'https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=facearea&w=150&h=150&q=80',
-    'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=facearea&w=150&h=150&q=80',
-    'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=facearea&w=150&h=150&q=80',
-    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=facearea&w=150&h=150&q=80',
-    'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=facearea&w=150&h=150&q=80',
-    'https://images.unsplash.com/photo-1524253482453-3fed8d2fe12b?auto=format&fit=facearea&w=150&h=150&q=80',
-    'https://images.unsplash.com/photo-1519340333755-c6e2a6a1b49a?auto=format&fit=facearea&w=150&h=150&q=80',
-    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=facearea&w=150&h=150&q=80',
-    'https://images.unsplash.com/photo-1494790108755-2616b612b786?auto=format&fit=facearea&w=150&h=150&q=80',
-    'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=facearea&w=150&h=150&q=80',
-    'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&w=150&h=150&q=80',
-    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=facearea&w=150&h=150&q=80',
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=facearea&w=150&h=150&q=80',
-    'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=facearea&w=150&h=150&q=80',
-    'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=facearea&w=150&h=150&q=80',
-  ];
-
-  // Shuffle helper
-  function shuffleArray<T>(array: T[]): T[] {
-    const arr = array.slice();
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  }
-
-  // Shuffle avatars and thumbnails for each render
-  const shuffledAvatars = shuffleArray(staticAvatars);
 
   // Themed SVG fallback for any image error
   const fallbackThumb =
@@ -381,6 +403,111 @@ export const ServiceFreelancers: React.FC = () => {
     return typeof freelancer.id === 'string' && freelancer.id.length === 36 && freelancer.id.includes('-');
   };
 
+  const generateAvatarUrl = (firstName: string | undefined, lastName: string | undefined, first_name: string | undefined, last_name: string | undefined) => {
+    const name = `${firstName || first_name || ''} ${lastName || last_name || ''}`.trim();
+    if (!name) return 'https://ui-avatars.com/api/?name=Freelancer&background=random&color=random';
+    const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=random`;
+    return avatarUrl;
+  };
+
+  // Generate dummy reviews for services that don't have real reviews
+  const generateDummyReviews = (serviceId: string) => {
+    const dummyReviews = [
+      { rating: 5, comment: 'Excellent work! Very professional and delivered on time.', created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() },
+      { rating: 4, comment: 'Great service, highly recommended!', created_at: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString() },
+      { rating: 5, comment: 'Very responsive and delivered quality results.', created_at: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString() },
+      { rating: 4, comment: 'Good quality work, would work with again.', created_at: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString() },
+      { rating: 5, comment: 'Professional service, exceeded expectations.', created_at: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString() },
+      { rating: 4, comment: 'Great communication and timely delivery.', created_at: new Date(Date.now() - 42 * 24 * 60 * 60 * 1000).toISOString() },
+      { rating: 5, comment: 'Reliable freelancer, would recommend.', created_at: new Date(Date.now() - 49 * 24 * 60 * 60 * 1000).toISOString() }
+    ];
+    
+    // Use service ID to consistently assign reviews (3-7 reviews per service)
+    const numReviews = (parseInt(serviceId.slice(-2), 16) % 5) + 3;
+    return dummyReviews.slice(0, numReviews);
+  };
+
+  // Function to get lowest price from plans
+  const getLowestPrice = (service: any) => {
+    if (service.plans) {
+      try {
+        const plans: Plan[] = typeof service.plans === 'string' 
+          ? JSON.parse(service.plans) 
+          : service.plans;
+        
+        if (plans && plans.length > 0) {
+          const prices = plans.map(plan => plan.price);
+          return Math.min(...prices);
+        }
+      } catch (e) {
+        console.error('Error parsing plans:', e);
+      }
+    }
+    return service.price || 0;
+  };
+
+  // Demo images from public folder - only using your provided images
+  const demoImages = [
+    '/OIPbg.png',
+    '/OIPfdf.png',
+    '/OIPfef.png',
+    '/OIPefe.png',
+    '/OIPcdf.png',
+    '/OIPnc.png',
+    '/OIPb.png',
+    '/OIPg.png',
+    '/why-trust-slideuplift-presentation-design-services-6.png',
+    '/OIPn.png',
+    '/OIPf.png',
+    '/OIPdf.png',
+    '/OIPvg.png',
+    '/OIPfg.png',
+    '/wp9517064.png',
+    '/representations_user_experience_interface_design_23_2150038900_74c059d2e1.png',
+    '/OIP78.png',
+    '/R.png',
+    '/OIPuj.png',
+    '/graphic-design.png',
+    '/OIPj.png',
+    '/Thumbnail-1.png',
+    '/seo-techniques.png',
+    '/Facility_Management_Software_fd01278999.png',
+    '/OIPh.png',
+    '/OIP34.png',
+    '/OIPt.png',
+    '/banner-content-writing.png',
+    '/6.png',
+    '/business-women-work-computers-write-notepad-with-pen-calculate-financial-statements-office_931309-4329.png',
+    '/574-5741689_content-writing-services-png-transparent-png.png',
+    '/OIP9.png',
+    '/OIP.8png.png',
+    '/OIP7.png',
+    '/OIP6.png',
+    '/OIP5.png',
+    '/OIP4.png',
+    '/OIP3.png',
+    '/OIP2.png',
+    '/7-Tips-to-Localize-and-Translate-Apps.png',
+    '/Social-media-marketing-01-1024x536.png',
+    '/social-media-engagement_839035-839915.png',
+    '/datadriven-social-media-management-for-startups-ihh.png',
+    '/featured_homepage.png',
+    '/OIP1.png',
+    '/pexels-francesco-paggiaro-2111015-scaled.png',
+    '/wp4269240.png',
+    '/InTheStudio.png',
+    '/music-8589292_640.png',
+    '/OIP.png',
+    '/TharLU.png',
+    '/Artboard-22.png'
+  ];
+
+  // Function to get random demo image based on service ID for consistency
+  const getRandomDemoImage = (serviceId: string) => {
+    const index = parseInt(serviceId.slice(-2), 16) % demoImages.length;
+    return demoImages[index];
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-950 to-dark-900 py-8 px-6">
       <div className="w-full">
@@ -512,38 +639,41 @@ export const ServiceFreelancers: React.FC = () => {
                 {/* Gig Image */}
                 <div className="relative">
                   <div className="w-full h-48 overflow-hidden">
-                    {(() => {
-                      let images = [];
-                      if (Array.isArray(service.images) && service.images.length > 0) {
-                        images = service.images;
-                      } else if (service.imageurl) {
-                        images = [service.imageurl];
-                      }
-                      const defaultThumb = '/gigbanner.webp';
-                      return (
-                        <img
-                          src={images[0] || defaultThumb}
-                          alt={service.title || service.name}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                          onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = defaultThumb; }}
-                        />
-                      );
-                    })()}
+                    <img
+                      src={getRandomDemoImage(service.id)}
+                      alt={service.title || service.name}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      onError={e => { 
+                        e.currentTarget.onerror = null; 
+                        e.currentTarget.src = getRandomDemoImage(service.id); 
+                      }}
+                    />
                   </div>
                   {/* Avatar overlay */}
                   <div className="absolute -bottom-8 left-4">
                     <div className="relative">
                       <img
-                        src={service.freelancer?.avatar || service.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(service.freelancer?.first_name || service.name || 'Freelancer')}
-                        alt={service.freelancer?.first_name || service.name || 'Freelancer'}
-                        className="w-16 h-16 rounded-full border-4 border-white dark:border-dark-800 shadow-lg"
-                        onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=facearea&w=150&h=150&q=80'; }}
+                        src={service.freelancer?.avatar || generateAvatarUrl(service.freelancer?.firstName, service.freelancer?.lastName, service.freelancer?.first_name, service.freelancer?.last_name)}
+                        alt={service.freelancer?.first_name && service.freelancer?.last_name 
+                          ? `${service.freelancer.first_name} ${service.freelancer.last_name}`
+                          : service.freelancer?.first_name || 'Freelancer'}
+                        className="w-16 h-16 rounded-full border-4 border-white dark:border-dark-800 shadow-lg cursor-pointer hover:scale-110 transition-transform duration-200"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (service.freelancer?.id) {
+                            navigate(`/user/${service.freelancer.id}`);
+                          }
+                        }}
+                        onError={e => { 
+                          e.currentTarget.onerror = null; 
+                          e.currentTarget.src = getRandomDemoImage(service.id); 
+                        }}
                       />
                     </div>
                   </div>
                   {/* Price badge */}
                   <div className="absolute top-4 right-4 bg-green-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
-                    ₹{service.price}
+                    ₹{getLowestPrice(service)}
                   </div>
                 </div>
                 {/* Content */}
@@ -553,10 +683,37 @@ export const ServiceFreelancers: React.FC = () => {
                       <h3 className="font-bold text-lg text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors duration-300">
                         {service.title || service.name}
                       </h3>
+                      {/* Freelancer Name */}
+                      <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                        by <span 
+                          className="cursor-pointer hover:text-green-600 dark:hover:text-green-400 transition-colors duration-200"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (service.freelancer?.id) {
+                              navigate(`/user/${service.freelancer.id}`);
+                            }
+                          }}
+                        >
+                          {(() => {
+                            const firstName = service.freelancer?.first_name;
+                            const lastName = service.freelancer?.last_name;
+                            
+                            if (firstName && lastName) {
+                              return `${firstName} ${lastName}`;
+                            } else if (firstName) {
+                              return firstName;
+                            } else {
+                              return 'Freelancer';
+                            }
+                          })()}
+                        </span>
+                      </div>
                       <div className="flex items-center gap-1 mt-1">
                         <Star className="w-4 h-4 text-yellow-400 fill-current" />
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {service.freelancer?.rating || service.rating || '4.8'} ({service.freelancer?.reviewCount || service.reviewCount || 24})
+                          {service.freelancer?.reviewCount > 0 
+                            ? `${service.freelancer?.rating?.toFixed(1)} (${service.freelancer?.reviewCount})`
+                            : 'No reviews yet'}
                         </span>
                       </div>
                     </div>
@@ -564,12 +721,6 @@ export const ServiceFreelancers: React.FC = () => {
                   <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-2">
                     {service.description || service.tagline || ''}
                   </p>
-                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-4">
-                    <div className="flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />
-                      <span>{service.freelancer?.location || service.location || ''}</span>
-                    </div>
-                  </div>
                   <div className="flex flex-wrap gap-1">
                     {(service.freelancer?.skills || service.skills || []).slice(0, 3).map((skill: string, index: number) => (
                       <span

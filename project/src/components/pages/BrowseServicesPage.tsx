@@ -1,5 +1,5 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const serviceCategories = [
   { 
@@ -146,6 +146,16 @@ const serviceCategories = [
 
 const BrowseServicesPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Get selected category from navigation state
+    const state = location.state as { selectedCategory?: string };
+    if (state?.selectedCategory) {
+      setSelectedCategory(state.selectedCategory);
+    }
+  }, [location]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-950 to-dark-900 py-12 px-4">
@@ -155,7 +165,10 @@ const BrowseServicesPage: React.FC = () => {
             Browse Services
           </h1>
           <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-            Find the perfect service for your project. Click a category to see top freelancers!
+            {selectedCategory 
+              ? `Showing services in ${selectedCategory.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}`
+              : 'Find the perfect service for your project. Click a category to see top freelancers!'
+            }
           </p>
         </div>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

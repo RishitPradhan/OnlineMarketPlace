@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, AuthContextType, RegisterData } from '../types';
 import { simpleAuthService as authService } from '../lib/simple-auth';
+import { clearUserProfileData } from '../lib/profile-completion';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -69,6 +70,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     try {
       console.log('[AuthContext] Logging out...');
+      
+      // Clear user-specific profile data before logout
+      if (user) {
+        clearUserProfileData(user.id);
+        console.log('[AuthContext] Cleared user-specific profile data');
+      }
+      
       await authService.logout();
       setUser(null);
       console.log('[AuthContext] User set to null after logout');
@@ -85,11 +93,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user]);
 
+  const updateUser = (updatedUser: User) => {
+    setUser(updatedUser);
+  };
+
   const value: AuthContextType = {
     user,
     login,
     register,
     logout,
+    updateUser,
     loading,
   };
 

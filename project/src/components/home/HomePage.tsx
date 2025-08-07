@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { serviceManagement } from '../../lib/service-management';
 import { 
   ArrowRight,
   Star,
@@ -34,12 +36,82 @@ const FullScreenTransition = ({ show }: { show: boolean }) => (
   </div>
 );
 
+// Demo images from public folder - only using your provided images
+const demoImages = [
+  '/OIPbg.png',
+  '/OIPfdf.png',
+  '/OIPfef.png',
+  '/OIPefe.png',
+  '/OIPcdf.png',
+  '/OIPnc.png',
+  '/OIPb.png',
+  '/OIPg.png',
+  '/why-trust-slideuplift-presentation-design-services-6.png',
+  '/OIPn.png',
+  '/OIPf.png',
+  '/OIPdf.png',
+  '/OIPvg.png',
+  '/OIPfg.png',
+  '/wp9517064.png',
+  '/representations_user_experience_interface_design_23_2150038900_74c059d2e1.png',
+  '/OIP78.png',
+  '/R.png',
+  '/OIPuj.png',
+  '/graphic-design.png',
+  '/OIPj.png',
+  '/Thumbnail-1.png',
+  '/seo-techniques.png',
+  '/Facility_Management_Software_fd01278999.png',
+  '/OIPh.png',
+  '/OIP34.png',
+  '/OIPt.png',
+  '/banner-content-writing.png',
+  '/6.png',
+  '/business-women-work-computers-write-notepad-with-pen-calculate-financial-statements-office_931309-4329.png',
+  '/574-5741689_content-writing-services-png-transparent-png.png',
+  '/OIP9.png',
+  '/OIP.8png.png',
+  '/OIP7.png',
+  '/OIP6.png',
+  '/OIP5.png',
+  '/OIP4.png',
+  '/OIP3.png',
+  '/OIP2.png',
+  '/7-Tips-to-Localize-and-Translate-Apps.png',
+  '/Social-media-marketing-01-1024x536.png',
+  '/social-media-engagement_839035-839915.png',
+  '/datadriven-social-media-management-for-startups-ihh.png',
+  '/featured_homepage.png',
+  '/OIP1.png',
+  '/pexels-francesco-paggiaro-2111015-scaled.png',
+  '/wp4269240.png',
+  '/InTheStudio.png',
+  '/music-8589292_640.png',
+  '/OIP.png',
+  '/TharLU.png',
+  '/Artboard-22.png'
+];
+
+// Function to get random demo image based on index for consistency
+const getRandomDemoImage = (index: number) => {
+  return demoImages[index % demoImages.length];
+};
+
+interface Plan {
+  name: string;
+  price: number;
+  desc: string;
+  features: string[];
+  delivery: string;
+}
+
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [scrollY, setScrollY] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   const [activeSection, setActiveSection] = useState(0);
-  const [showServicesModal, setShowServicesModal] = useState(false);
+
   const [showFirstText, setShowFirstText] = useState(false);
   const [showPageTransition, setShowPageTransition] = useState(false);
 
@@ -85,139 +157,93 @@ export const HomePage: React.FC = () => {
     }
   }, [scrollY]);
 
-  const popularServices = [
-    {
-      icon: <Code className="w-8 h-8" />,
-      title: "Web Development",
-      description: "Modern, responsive websites built with cutting-edge technologies",
-      price: "From ₹50",
-      rating: 4.9,
-      reviews: 1247
-    },
-    {
-      icon: <Palette className="w-8 h-8" />,
-      title: "Graphic Design",
-      description: "Creative visual solutions that make your brand stand out",
-      price: "From ₹25",
-      rating: 4.8,
-      reviews: 2156
-    },
-    {
-      icon: <Camera className="w-8 h-8" />,
-      title: "Video Production",
-      description: "Professional video content that tells your story",
-      price: "From ₹100",
-      rating: 4.9,
-      reviews: 892
-    },
-    {
-      icon: <Music className="w-8 h-8" />,
-      title: "Audio & Music",
-      description: "High-quality audio production and sound design",
-      price: "From ₹30",
-      rating: 4.7,
-      reviews: 1567
-    },
-    {
-      icon: <PenTool className="w-8 h-8" />,
-      title: "Digital Art",
-      description: "Stunning illustrations and digital artwork",
-      price: "From ₹40",
-      rating: 4.8,
-      reviews: 1345
-    },
-    {
-      icon: <Briefcase className="w-8 h-8" />,
-      title: "Business Consulting",
-      description: "Strategic guidance to grow your business",
-      price: "From ₹75",
-      rating: 4.9,
-      reviews: 678
-    },
-    {
-      icon: <Globe className="w-8 h-8" />,
-      title: "SEO Optimization",
-      description: "Boost your website's ranking and visibility on search engines",
-      price: "From ₹60",
-      rating: 4.8,
-      reviews: 980
-    },
-    {
-      icon: <Zap className="w-8 h-8" />,
-      title: "App Prototyping",
-      description: "Interactive prototypes to bring your app ideas to life",
-      price: "From ₹120",
-      rating: 4.9,
-      reviews: 410
-    },
-    {
-      icon: <Shield className="w-8 h-8" />,
-      title: "Cybersecurity Audit",
-      description: "Comprehensive security checks for your digital assets",
-      price: "From ₹200",
-      rating: 5.0,
-      reviews: 150
-    },
-    {
-      icon: <Star className="w-8 h-8" />,
-      title: "Brand Strategy",
-      description: "Craft a unique brand identity and market positioning",
-      price: "From ₹90",
-      rating: 4.7,
-      reviews: 320
-    },
-    {
-      icon: <TrendingUp className="w-8 h-8" />,
-      title: "Social Media Marketing",
-      description: "Grow your audience and engagement across platforms",
-      price: "From ₹35",
-      rating: 4.6,
-      reviews: 1120
-    },
-    {
-      icon: <Award className="w-8 h-8" />,
-      title: "Copywriting",
-      description: "Persuasive and creative copy for ads, blogs, and websites",
-      price: "From ₹20",
-      rating: 4.9,
-      reviews: 2100
-    },
-  ];
+  // Fetch real service data
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        setLoading(true);
+        // Fetch popular services (limit to 4 for card swap)
+        const popularResponse = await serviceManagement.listServices();
+        if (popularResponse.success && popularResponse.data) {
+          console.log('Popular services fetched:', popularResponse.data);
+          setPopularServices(popularResponse.data.slice(0, 4));
+        }
+        
+        // Fetch featured works (top services)
+        const featuredResponse = await serviceManagement.listServices();
+        if (featuredResponse.success && featuredResponse.data) {
+          console.log('Featured works fetched:', featuredResponse.data);
+          setFeaturedWorks(featuredResponse.data.slice(0, 4));
+        }
+      } catch (error) {
+        console.error('Error fetching services:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const featuredWorks = [
-    {
-      image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=300&fit=crop",
-      title: "E-commerce Platform",
-      category: "Web Development",
-      price: "₹2,500",
-      rating: 5.0,
-      reviews: 89
-    },
-    {
-      image: "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=400&h=300&fit=crop",
-      title: "Brand Identity",
-      category: "Graphic Design",
-      price: "₹800",
-      rating: 4.9,
-      reviews: 156
-    },
-    {
-      image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=300&fit=crop",
-      title: "Product Launch",
-      category: "Video Production",
-      price: "₹1,200",
-      rating: 5.0,
-      reviews: 234
-    },
-    {
-      image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=300&fit=crop",
-      title: "Mobile App",
-      category: "App Development",
-      price: "₹5,000",
-      rating: 4.8,
-      reviews: 67
+    fetchServices();
+  }, []);
+
+  // Popular services will be fetched from the database
+  const [popularServices, setPopularServices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Category icons mapping
+  const categoryIcons: { [key: string]: React.ReactNode } = {
+    'web-development': <Code className="w-8 h-8" />,
+    'design': <Palette className="w-8 h-8" />,
+    'video-production': <Camera className="w-8 h-8" />,
+    'audio-music': <Music className="w-8 h-8" />,
+    'digital-art': <PenTool className="w-8 h-8" />,
+    'business-consulting': <Briefcase className="w-8 h-8" />,
+    'seo': <Globe className="w-8 h-8" />,
+    'app-development': <Zap className="w-8 h-8" />,
+    'cybersecurity': <Shield className="w-8 h-8" />,
+    'branding': <Star className="w-8 h-8" />,
+    'social-media': <TrendingUp className="w-8 h-8" />,
+    'copywriting': <Award className="w-8 h-8" />,
+  };
+
+  // Default icon for unknown categories
+  const getCategoryIcon = (category: string) => {
+    return categoryIcons[category] || <Briefcase className="w-8 h-8" />;
+  };
+
+  // Featured works will be fetched from the database
+  const [featuredWorks, setFeaturedWorks] = useState<any[]>([]);
+
+  // Function to get lowest price from plans
+  const getLowestPrice = (service: any) => {
+    if (service.plans) {
+      try {
+        const plans: Plan[] = typeof service.plans === 'string' 
+          ? JSON.parse(service.plans) 
+          : service.plans;
+        
+        if (plans && plans.length > 0) {
+          const prices = plans.map(plan => plan.price);
+          return Math.min(...prices);
+        }
+      } catch (e) {
+        console.error('Error parsing plans:', e);
+      }
     }
-  ];
+    return service.price || 0;
+  };
+
+  // Helper function to handle navigation with auth check
+  const handleServiceNavigation = (category: string) => {
+    if (!user) {
+      navigate('/login');
+    } else {
+      navigate('/browse-services', { 
+        state: { 
+          selectedCategory: category.toLowerCase().replace(' ', '-').replace('&', 'and') 
+        } 
+      });
+    }
+  };
 
   return (
     <>
@@ -246,11 +272,11 @@ export const HomePage: React.FC = () => {
           <div className={`transition-all duration-1000 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
             <h1 className="text-8xl lg:text-9xl font-bold mb-8 leading-none text-white">
               <span className={`block transition-all duration-700 delay-200 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'}`}> 
-                make it
+                Find the perfect
               </span>
               <span className={`block text-white transition-all duration-700 delay-500 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'}`}> 
                 <RotatingText
-                  texts={["creative", "bold", "modern"]}
+                  texts={["freelancer", "service", "talent"]}
                   mainClassName="inline-block text-white"
                   elementLevelClassName="inline-block"
                   rotationInterval={2000}
@@ -263,8 +289,7 @@ export const HomePage: React.FC = () => {
             </h1>
             
             <p className={`text-xl lg:text-2xl text-white mb-12 max-w-2xl leading-relaxed transition-all duration-700 delay-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-              I'm FreelanceHub, a platform that connects elite talent with visionary projects. 
-              Let's create something extraordinary together.
+              Connect with skilled professionals and talented freelancers. Post projects, find services, and get work done with confidence on our trusted marketplace platform.
             </p>
 
             <div className={`flex flex-col sm:flex-row gap-6 justify-start items-start transition-all duration-700 delay-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
@@ -297,11 +322,11 @@ export const HomePage: React.FC = () => {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-20">
             <h2 className={`text-6xl lg:text-7xl font-bold mb-8 transition-all duration-1000 ${scrollY > 300 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-              What we do
+              Our Marketplace
             </h2>
             {/* Updated description */}
             <p className={`text-xl lg:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto transition-all duration-1000 delay-200 ${scrollY > 300 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-              We empower businesses and freelancers to connect, collaborate, and succeed. Our platform bridges the gap between clients and top talent, while providing seamless tools for project management, communication, and secure payments.
+              We connect clients with skilled freelancers through our comprehensive marketplace. Post projects, browse services, manage orders, and handle payments all in one secure platform designed for seamless collaboration.
             </p>
           </div>
 
@@ -317,9 +342,9 @@ export const HomePage: React.FC = () => {
                 />
               </div>
               <div className={`flex-1 transition-all duration-1000 delay-400 ${scrollY > 400 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'}`}> 
-                <h3 className="text-3xl lg:text-4xl font-bold mb-2 text-green-700 dark:text-green-400">Connects Freelancers and Clients</h3>
+                <h3 className="text-3xl lg:text-4xl font-bold mb-2 text-green-700 dark:text-green-400">Post Projects & Browse Services</h3>
                 <p className="text-lg lg:text-xl text-gray-600 dark:text-gray-300 leading-relaxed">
-                  It allows clients to post projects or gigs and freelancers to offer services, enabling both parties to find suitable work or talent.
+                  Clients can post detailed project requirements while freelancers showcase their services with portfolios, ratings, and pricing. Our matching system helps you find the perfect fit.
                 </p>
               </div>
             </div>
@@ -333,9 +358,9 @@ export const HomePage: React.FC = () => {
                 />
               </div>
               <div className={`flex-1 transition-all duration-1000 delay-1100 ${scrollY > 800 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'}`}> 
-                <h3 className="text-3xl lg:text-4xl font-bold mb-2 text-green-700 dark:text-green-400">Facilitates Project Management and Payments</h3>
+                <h3 className="text-3xl lg:text-4xl font-bold mb-2 text-green-700 dark:text-green-400">Secure Orders & Payment Processing</h3>
                 <p className="text-lg lg:text-xl text-gray-600 dark:text-gray-300 leading-relaxed">
-                  It provides tools for messaging, tracking work progress, handling payments, and reviewing completed jobs, ensuring a smooth workflow from start to finish.
+                  Place orders with confidence using our secure payment system. Track project progress, communicate directly with freelancers, and release payments only when you're satisfied with the work.
                 </p>
               </div>
             </div>
@@ -351,10 +376,10 @@ export const HomePage: React.FC = () => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">
             <h2 className={`text-6xl lg:text-7xl font-bold mb-8 transition-all duration-1000 ${scrollY > 1200 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-              Our Services
+              Popular Categories
             </h2>
             <p className={`text-xl lg:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto transition-all duration-1000 delay-200 ${scrollY > 1200 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-              Discover our comprehensive range of professional services designed to elevate your business
+              Explore the most in-demand services from our verified freelancers across various professional categories
             </p>
           </div>
 
@@ -363,11 +388,11 @@ export const HomePage: React.FC = () => {
             <div className="flex-1 space-y-8">
               <div className={`transition-all duration-1000 delay-300 ${scrollY > 1200 ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'}`}>
                 <h3 className="text-4xl font-bold mb-6 text-gray-900 dark:text-white">
-                  Professional Excellence
+                  Verified Freelancers
                 </h3>
                 <p className="text-lg text-gray-600 dark:text-gray-300 leading-relaxed mb-8">
-                  We connect you with top-tier freelancers who deliver exceptional results. 
-                  From web development to creative design, our platform ensures quality and reliability.
+                  Every freelancer on our platform is verified and rated by previous clients. 
+                  Browse portfolios, read reviews, and choose from thousands of skilled professionals ready to deliver quality work.
                 </p>
                 <div className="grid grid-cols-2 gap-6">
                   <div className="flex items-center space-x-3">
@@ -393,12 +418,21 @@ export const HomePage: React.FC = () => {
             {/* Right side - Card animation */}
             <div className="flex-1 flex justify-center items-end">
               <div className={`transition-all duration-1000 delay-500 mt-16 ${scrollY > 1200 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'}`}>
-                <CardSwap width={450} height={380} cardDistance={50} verticalDistance={60} delay={3000} skewAmount={4}>
-                  {popularServices.slice(0, 4).map((service, index) => (
-                    <Card key={index} customClass="p-8 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
+                {loading ? (
+                  <div className="flex items-center justify-center w-full h-64">
+                    <div className="text-gray-500 dark:text-gray-400">Loading services...</div>
+                  </div>
+                ) : popularServices.length > 0 ? (
+                  <CardSwap width={450} height={380} cardDistance={50} verticalDistance={60} delay={3000} skewAmount={4}>
+                    {popularServices.map((service, index) => (
+                    <Card 
+                      key={service.id || index} 
+                      customClass="p-8 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 cursor-pointer"
+                      onClick={() => handleServiceNavigation(service.category)}
+                    >
                       <div className="mb-6">
                         <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center text-white mb-4 group-hover:scale-105 group-hover:rotate-6 transition-all duration-300 shadow-lg">
-                          {service.icon}
+                          {getCategoryIcon(service.category)}
                         </div>
                         <h3 className="text-2xl font-bold mb-3 text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors duration-300">
                           {service.title}
@@ -410,16 +444,24 @@ export const HomePage: React.FC = () => {
                       <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700">
                         <div className="flex items-center space-x-2">
                           <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                          <span className="font-medium text-sm">{service.rating}</span>
-                          <span className="text-gray-500 text-xs">({service.reviews})</span>
+                          <span className="font-medium text-sm">4.8</span>
+                          <span className="text-gray-500 text-xs">(12 reviews)</span>
                         </div>
                         <span className="font-bold text-green-600 dark:text-green-400 text-lg">
-                          {service.price}
+                          ₹{getLowestPrice(service)}
                         </span>
                       </div>
                     </Card>
                   ))}
                 </CardSwap>
+                ) : (
+                  <div className="flex items-center justify-center w-full h-64">
+                    <div className="text-gray-500 dark:text-gray-400 flex flex-col items-center gap-4">
+                      <div className="text-lg font-medium">No services available</div>
+                      <div className="text-sm">Check back later for new services</div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -431,22 +473,35 @@ export const HomePage: React.FC = () => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">
             <h2 className={`text-6xl lg:text-7xl font-bold mb-8 transition-all duration-1000 ${scrollY > 2000 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-              Featured Work
+              Top Services
             </h2>
             <p className={`text-xl lg:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto transition-all duration-1000 delay-200 ${scrollY > 2000 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-              Discover exceptional projects that showcase the talent and creativity of our community
+              Browse our highest-rated services from top-performing freelancers with proven track records
             </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            {featuredWorks.map((work, index) => (
-              <div key={index} className={`group transition-all duration-1000 ${scrollY > 1600 + (index * 100) ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`} style={{ transitionDelay: `${index * 100}ms` }}>
+            {loading ? (
+              <div className="col-span-2 flex items-center justify-center py-20">
+                <div className="text-gray-500 dark:text-gray-400">Loading featured services...</div>
+              </div>
+            ) : featuredWorks.length > 0 ? (
+              featuredWorks.map((work, index) => (
+              <div key={work.id || index} className={`group transition-all duration-1000 ${scrollY > 1600 + (index * 100) ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`} style={{ transitionDelay: `${index * 100}ms` }}>
                 <div className="relative overflow-hidden rounded-3xl bg-white dark:bg-gray-800 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
                   <div className="relative overflow-hidden rounded-t-3xl">
                     <img
-                      src={work.image}
+                      src={work.imageUrl || work.images?.[0] || getRandomDemoImage(index)}
                       alt={work.title}
                       className="w-full h-64 object-cover transform group-hover:scale-105 transition-transform duration-700"
+                      onError={(e) => {
+                        console.log('Image failed to load:', e.currentTarget.src);
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = getRandomDemoImage(index);
+                      }}
+                      onLoad={() => {
+                        console.log('Image loaded successfully:', work.title);
+                      }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                     <div className="absolute top-4 left-4">
@@ -457,7 +512,7 @@ export const HomePage: React.FC = () => {
                     <div className="absolute top-4 right-4">
                       <div className="flex items-center space-x-1 bg-white/90 dark:bg-gray-800/90 px-3 py-1 rounded-full">
                         <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                        <span className="font-medium text-sm">{work.rating}</span>
+                        <span className="font-medium text-sm">4.8</span>
                       </div>
                     </div>
                   </div>
@@ -467,13 +522,13 @@ export const HomePage: React.FC = () => {
                       {work.title}
                     </h3>
                     <p className="text-gray-600 dark:text-gray-300 mb-4 leading-relaxed text-sm">
-                      Exceptional work delivered with precision and creativity. This project demonstrates the high quality and professional standards our freelancers maintain.
+                      {work.description}
                     </p>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
                         <div className="flex items-center space-x-2">
                           <Users className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-500">({work.reviews} reviews)</span>
+                          <span className="text-sm text-gray-500">(12 reviews)</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <TrendingUp className="w-4 h-4 text-green-500" />
@@ -482,26 +537,40 @@ export const HomePage: React.FC = () => {
                       </div>
                       <div className="text-right">
                         <span className="text-xl font-bold text-green-600 dark:text-green-400">
-                          {work.price}
+                          ₹{getLowestPrice(work)}
                         </span>
                         <div className="text-xs text-gray-500">Starting Price</div>
                       </div>
                     </div>
                     
                     <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-                      <button className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white font-medium py-2 px-4 rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-300 hover:shadow-lg transform hover:scale-102 text-sm">
-                        View Project Details
+                      <button 
+                        onClick={() => handleServiceNavigation(work.category)}
+                        className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white font-medium py-2 px-4 rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-300 hover:shadow-lg transform hover:scale-102 text-sm"
+                      >
+                        View Service Details
                       </button>
                     </div>
                   </div>
                 </div>
               </div>
-            ))}
+            ))
+            ) : (
+              <div className="col-span-2 flex items-center justify-center py-20">
+                <div className="text-gray-500 dark:text-gray-400 flex flex-col items-center gap-4">
+                  <div className="text-lg font-medium">No featured services available</div>
+                  <div className="text-sm">Check back later for featured services</div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className={`text-center mt-16 transition-all duration-1000 delay-400 ${scrollY > 1800 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-            <button className="group relative px-8 py-4 bg-black dark:bg-white text-white dark:text-black font-medium text-lg rounded-full overflow-hidden transition-all duration-300 hover:scale-102 hover:shadow-2xl">
-              <span className="relative z-10 transition-all duration-300 group-hover:translate-x-1">Explore More Projects</span>
+            <button 
+              onClick={() => user ? navigate('/browse-services') : navigate('/login')}
+              className="group relative px-8 py-4 bg-black dark:bg-white text-white dark:text-black font-medium text-lg rounded-full overflow-hidden transition-all duration-300 hover:scale-102 hover:shadow-2xl"
+            >
+              <span className="relative z-10 transition-all duration-300 group-hover:translate-x-1">Browse All Services</span>
               <div className="absolute inset-0 bg-green-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
             </button>
           </div>
@@ -512,10 +581,10 @@ export const HomePage: React.FC = () => {
       <section ref={ctaRef} className="py-32 px-6">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className={`text-6xl lg:text-7xl font-bold mb-8 transition-all duration-1000 ${scrollY > 2200 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-            Get in touch
+            Ready to get started?
           </h2>
           <p className={`text-xl lg:text-2xl text-gray-600 dark:text-gray-300 mb-12 max-w-2xl mx-auto transition-all duration-1000 delay-200 ${scrollY > 2200 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-            Ready to start your next project? Let's create something amazing together.
+            Join thousands of clients and freelancers who trust our marketplace for their projects and services.
           </p>
           
           <button
@@ -529,55 +598,7 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {showServicesModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white dark:bg-dark-900 rounded-2xl shadow-2xl max-w-3xl w-full p-8 relative animate-fade-in-up">
-            <button
-              className="absolute top-4 right-4 text-gray-400 hover:text-green-600 text-2xl"
-              onClick={() => setShowServicesModal(false)}
-              aria-label="Close"
-            >
-              <X className="w-7 h-7" />
-            </button>
-            <h2 className="text-3xl font-bold mb-8 text-center text-green-700 dark:text-green-400">Browse Services</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {popularServices.map((service, index) => (
-                <div
-                  key={index}
-                  className="group p-6 border border-gray-200 dark:border-gray-800 rounded-2xl hover:border-green-500 dark:hover:border-green-400 transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 bg-white dark:bg-dark-800"
-                  onClick={() => {
-                    setShowPageTransition(true);
-                    setTimeout(() => {
-                      navigate('/featured-project');
-                    }, 700); // Match duration to overlay animation
-                  }}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <div className="mb-4">
-                    <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-2xl flex items-center justify-center text-green-600 dark:text-green-400 mb-2 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300">
-                      {service.icon}
-                    </div>
-                    <h3 className="text-xl font-bold mb-1 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors duration-300">{service.title}</h3>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
-                      {service.description}
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                      <span className="font-medium text-sm">{service.rating}</span>
-                      <span className="text-gray-500 text-xs">({service.reviews})</span>
-                    </div>
-                    <span className="font-bold text-green-600 dark:text-green-400 text-sm">
-                      {service.price}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+
       <FullScreenTransition show={showPageTransition} />
     </div>
     </>

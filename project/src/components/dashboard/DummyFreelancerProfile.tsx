@@ -2,6 +2,67 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Star, ArrowLeft, Share2, Bookmark, Flag, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
+// Demo images from public folder - only using your provided images
+const demoImages = [
+  '/OIPbg.png',
+  '/OIPfdf.png',
+  '/OIPfef.png',
+  '/OIPefe.png',
+  '/OIPcdf.png',
+  '/OIPnc.png',
+  '/OIPb.png',
+  '/OIPg.png',
+  '/why-trust-slideuplift-presentation-design-services-6.png',
+  '/OIPn.png',
+  '/OIPf.png',
+  '/OIPdf.png',
+  '/OIPvg.png',
+  '/OIPfg.png',
+  '/wp9517064.png',
+  '/representations_user_experience_interface_design_23_2150038900_74c059d2e1.png',
+  '/OIP78.png',
+  '/R.png',
+  '/OIPuj.png',
+  '/graphic-design.png',
+  '/OIPj.png',
+  '/Thumbnail-1.png',
+  '/seo-techniques.png',
+  '/Facility_Management_Software_fd01278999.png',
+  '/OIPh.png',
+  '/OIP34.png',
+  '/OIPt.png',
+  '/banner-content-writing.png',
+  '/6.png',
+  '/business-women-work-computers-write-notepad-with-pen-calculate-financial-statements-office_931309-4329.png',
+  '/574-5741689_content-writing-services-png-transparent-png.png',
+  '/OIP9.png',
+  '/OIP.8png.png',
+  '/OIP7.png',
+  '/OIP6.png',
+  '/OIP5.png',
+  '/OIP4.png',
+  '/OIP3.png',
+  '/OIP2.png',
+  '/7-Tips-to-Localize-and-Translate-Apps.png',
+  '/Social-media-marketing-01-1024x536.png',
+  '/social-media-engagement_839035-839915.png',
+  '/datadriven-social-media-management-for-startups-ihh.png',
+  '/featured_homepage.png',
+  '/OIP1.png',
+  '/pexels-francesco-paggiaro-2111015-scaled.png',
+  '/wp4269240.png',
+  '/InTheStudio.png',
+  '/music-8589292_640.png',
+  '/OIP.png',
+  '/TharLU.png',
+  '/Artboard-22.png'
+];
+
+// Function to get random demo image based on index for consistency
+const getRandomDemoImage = (index: number) => {
+  return demoImages[index % demoImages.length];
+};
+
 const DummyFreelancerProfile: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -72,7 +133,7 @@ const DummyFreelancerProfile: React.FC = () => {
   const displayName = freelancer.name || 'Unknown';
   const displayAvatar = freelancer.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(displayName);
   const displayTagline = freelancer.tagline || '';
-  const gigImage = freelancer.workThumb || '/gigbanner.webp';
+      const gigImage = freelancer.workThumb || getRandomDemoImage(parseInt(freelancer.id.slice(-2), 16));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-green-50 dark:from-dark-950 dark:to-dark-900 py-8 px-0 relative">
@@ -93,7 +154,7 @@ const DummyFreelancerProfile: React.FC = () => {
               src={gigImage} 
               alt="Gig Banner" 
               className="object-cover w-full h-full" 
-              onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = '/gigbanner.webp'; }}
+                                      onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = getRandomDemoImage(parseInt(freelancer.id.slice(-2), 16)); }}
             />
           </div>
           {/* Title & Seller */}
@@ -107,7 +168,16 @@ const DummyFreelancerProfile: React.FC = () => {
           </div>
           {/* Seller Info */}
           <div className="flex items-center gap-4 mb-6">
-            <img src={displayAvatar} alt={displayName} className="w-16 h-16 rounded-full object-cover border-2 border-green-200" />
+            <img 
+              src={displayAvatar} 
+              alt={displayName} 
+              className="w-16 h-16 rounded-full object-cover border-2 border-green-200 cursor-pointer hover:scale-110 transition-transform duration-200" 
+              onClick={() => {
+                if (freelancer?.id) {
+                  navigate(`/user/${freelancer.id}`);
+                }
+              }}
+            />
             <div>
               <div className="font-bold text-xl text-gray-900 dark:text-white flex items-center gap-2">{displayName} <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full ml-1">Top Rated</span></div>
               <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">

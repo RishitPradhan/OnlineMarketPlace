@@ -14,6 +14,7 @@ export interface AuthContextType {
   login: (email: string, password: string) => Promise<User>;
   register: (userData: RegisterData) => Promise<User>;
   logout: () => void;
+  updateUser: (updatedUser: User) => void;
   loading: boolean;
 }
 
@@ -51,6 +52,8 @@ export interface Service {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  plans?: any[];
+  faqs?: any[];
 }
 
 export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'processing' | 'refunded';

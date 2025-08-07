@@ -7,6 +7,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { AuthCarousel } from './AuthCarousel';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Invalid email address'),
@@ -40,18 +41,14 @@ export const LoginForm: React.FC = () => {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     setErrorMessage('');
-    console.log('[LoginForm] Submitting login:', data);
     try {
       const user = await login(data.email, data.password);
-      console.log('[LoginForm] Login result:', user);
       if (user && user.id) {
-      navigate('/dashboard');
+        navigate('/dashboard');
       } else {
-        console.error('[LoginForm] Login failed, no user returned');
         setErrorMessage('Login failed. Please check your credentials.');
       }
     } catch (error: any) {
-      console.error('[LoginForm] Login error:', error);
       let msg = 'Login failed. Please check your credentials.';
       if (error) {
         if (typeof error === 'string') msg = error;
@@ -68,90 +65,113 @@ export const LoginForm: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white to-green-50 dark:from-dark-950 dark:to-dark-900 px-0 py-0">
-      <div className="w-full max-w-4xl bg-white dark:bg-dark-900 rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden">
-        {/* Left: Welcome message */}
-        <div className="hidden md:flex flex-col justify-center items-center bg-green-600 dark:bg-green-800 text-white w-full md:w-1/2 p-10 transition-all duration-500">
-          <div className="h-32 flex flex-col items-center justify-center w-full">
-            <h1 className={`text-4xl md:text-5xl lg:text-6xl font-bold text-white text-center transition-all duration-1000 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>Welcome to FreelanceHub</h1>
-            <p className={`mt-8 text-xl md:text-2xl text-white/90 text-center max-w-xl transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>Unlock your potential. Connect. Create. Succeed.</p>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-emerald-50 to-green-50 dark:from-slate-900 dark:via-emerald-900/20 dark:to-slate-900 px-4 py-8">
+      <div className="w-full max-w-6xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-slate-700/50 flex flex-col md:flex-row overflow-hidden">
+        
+        {/* Left: Carousel - Fixed positioning */}
+        <div className="hidden md:flex w-full md:w-1/2 relative overflow-hidden rounded-l-3xl">
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-emerald-900 to-slate-900">
+            <div className="absolute inset-0 opacity-5">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.3)_1px,transparent_1px)] bg-[length:24px_24px]"></div>
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-green-500/10"></div>
+            
+            {/* Carousel Content - Full height */}
+            <div className="absolute inset-0">
+              <AuthCarousel type="login" />
+            </div>
           </div>
         </div>
-        {/* Right: Login form */}
-        <div className="w-full md:w-1/2 flex flex-col justify-center items-center p-8 md:p-12">
-          <div className="mb-8 text-center">
-            <span className="inline-block w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mb-2">
-              <svg width="32" height="32" fill="none" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zm0 13.5l-10-5V17a2 2 0 002 2h16a2 2 0 002-2v-6.5l-10 5z" fill="#10b981"/></svg>
-            </span>
-            <h1 className="text-2xl font-bold text-green-700 dark:text-green-400">Sign in to FreelanceHub</h1>
+        
+        {/* Mobile: Simplified carousel */}
+        <div className="md:hidden w-full h-48 relative overflow-hidden rounded-t-3xl">
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-emerald-900 to-slate-900">
+            <div className="absolute inset-0 opacity-5">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.3)_1px,transparent_1px)] bg-[length:24px_24px]"></div>
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-green-500/10"></div>
+            
+            {/* Mobile Carousel */}
+            <div className="absolute inset-0">
+              <AuthCarousel type="login" />
+            </div>
           </div>
-          {errorMessage && (
-            <div className="w-full mb-4 flex items-center bg-red-200 border border-red-400 text-red-800 px-4 py-3 rounded-lg shadow-lg animate-pulse">
-              <AlertCircle className="w-5 h-5 mr-2 text-red-600" />
-              <span className="text-base font-semibold">{errorMessage}</span>
+        </div>
+        
+        {/* Right: Login form - Clean and separate */}
+        <div className="w-full md:w-1/2 flex flex-col justify-center items-center p-8 md:p-10 lg:p-12 bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm relative z-10">
+          <div className="w-full max-w-md">
+            <div className="mb-8 text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-600 to-green-700 dark:from-emerald-500 dark:to-green-600 rounded-2xl mb-6 shadow-lg">
+                <svg width="28" height="28" fill="none" viewBox="0 0 24 24" className="text-white">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zm0 13.5l-10-5V17a2 2 0 002 2h16a2 2 0 002-2v-6.5l-10 5z" fill="currentColor"/>
+                </svg>
+              </div>
+              <h1 className="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-200 mb-2">Welcome back</h1>
+              <p className="text-slate-600 dark:text-slate-400">Sign in to your account</p>
             </div>
-          )}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 w-full">
-            <Input
-              {...register('email')}
-              type="email"
-              label="Email"
-              placeholder="Enter your email"
-              icon={<Mail className="w-5 h-5 text-dark-400 dark:text-dark-400 text-green-600" />}
-              error={errors.email?.message}
-            />
-            <div className="relative">
+            
+            {errorMessage && (
+              <div className="w-full mb-6 flex items-center bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl shadow-sm">
+                <AlertCircle className="w-5 h-5 mr-3 text-red-500" />
+                <span className="text-sm font-medium">{errorMessage}</span>
+              </div>
+            )}
+            
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 w-full">
               <Input
-                {...register('password')}
-                type={showPassword ? 'text' : 'password'}
-                label="Password"
-                placeholder="Enter your password"
-                icon={<Lock className="w-5 h-5 text-dark-400 dark:text-dark-400 text-green-600" />}
-                error={errors.password?.message}
+                {...register('email')}
+                type="email"
+                label="Email"
+                placeholder="Enter your email"
+                icon={<Mail className="w-5 h-5 text-green-600" />}
+                error={errors.email?.message}
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-9 text-dark-400 dark:text-dark-400 text-green-600 hover:text-green-400 dark:hover:text-green-400 transition-colors"
-              >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
-            </div>
-            <Button
-              type="submit"
-              loading={isLoading}
-              className="w-full group"
-              size="lg"
-            >
-              {isLoading ? 'Signing In...' : 'Access Dashboard'}
-              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-            </Button>
-            <div className="text-center">
-              <p className="text-dark-300 dark:text-dark-300 text-green-600">
-                New to FreelanceHub?{' '}
+              
+              <div className="relative">
+                <Input
+                  {...register('password')}
+                  type={showPassword ? 'text' : 'password'}
+                  label="Password"
+                  placeholder="Enter your password"
+                  icon={<Lock className="w-5 h-5 text-green-600" />}
+                  error={errors.password?.message}
+                />
                 <button
                   type="button"
-                  onClick={handleSwitchToRegister}
-                  className="text-green-600 hover:text-green-500 font-medium transition-colors"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-9 text-green-600 hover:text-green-400 transition-colors"
                 >
-                  Join the elite
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
-              </p>
-            </div>
-            {/* Test credentials for development */}
-            <div className="mt-6 p-4 bg-dark-800/50 dark:bg-dark-800/50 bg-green-100/50 rounded-lg border border-dark-600 dark:border-dark-600 border-green-200">
-              <p className="text-xs text-dark-400 dark:text-dark-400 text-green-600 mb-2">For testing purposes:</p>
-              <p className="text-xs text-dark-300 dark:text-dark-300 text-green-600">Email: test@example.com</p>
-              <p className="text-xs text-dark-300 dark:text-dark-300 text-green-600">Password: password123</p>
-            </div>
-          </form>
+              </div>
+              
+              <Button
+                type="submit"
+                loading={isLoading}
+                className="w-full group bg-gradient-to-r from-emerald-600 to-green-700 hover:from-emerald-700 hover:to-green-800 dark:from-emerald-500 dark:to-green-600 dark:hover:from-emerald-600 dark:hover:to-green-700 shadow-lg"
+                size="lg"
+              >
+                {isLoading ? 'Signing In...' : 'Sign In'}
+                <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              </Button>
+              
+              <div className="text-center">
+                <p className="text-slate-600 dark:text-slate-400">
+                  New to FreelanceHub?{' '}
+                  <button
+                    type="button"
+                    onClick={handleSwitchToRegister}
+                    className="text-slate-800 dark:text-slate-200 hover:text-slate-600 dark:hover:text-slate-400 font-medium transition-colors"
+                  >
+                    Create account
+                  </button>
+                </p>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>
   );
 };
-
-// Add fade-in-out animation for the slideshow
-// In your global CSS (e.g., index.css), add:
-// .animate-fade-in-out { animation: fadeInOut 1s; }
-// @keyframes fadeInOut { 0% { opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; } }

@@ -10,19 +10,29 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { ProfileCompletionGuard } from '../common/ProfileCompletionGuard';
 
-// Replace the categories array with a deduplicated, sorted list from all sources
-const categories = Array.from(new Set([
-  // From BrowseServicesPage
-  'Web Development', 'Mobile App Development', 'Graphic Design', 'Content Writing', 'Digital Marketing', 'Video Production', 'SEO', 'UI/UX Design', 'Voice Over', 'Translation', 'Business Consulting', 'Social Media Management', 'E-Commerce Development', 'Data Analysis', 'Game Development', 'Music & Audio', 'Presentation Design', 'Legal Consulting', 'Virtual Assistant', 'Branding',
-  // From HomePage
-  'Audio & Music', 'Digital Art', 'SEO Optimization', 'App Prototyping',
-  // From PortfolioPage
-  'Mobile Development', 'UI/UX Design', 'Other',
-  // From Dashboard featuredWorks
-  'App Development', 'Animation', 'Design', 'Business', 'Languages',
-  // From your previous static list
-  'Design & Creative', 'Development & IT', 'Writing & Translation', 'Marketing & Sales', 'Business & Finance', 'Music & Audio', 'Video & Animation'
-])).sort();
+// Categories for services
+const categories = [
+  'Web Development',
+  'Mobile App Development', 
+  'Graphic Design',
+  'Content Writing',
+  'Digital Marketing',
+  'Video Production',
+  'SEO',
+  'UI/UX Design',
+  'Voice Over',
+  'Translation',
+  'Business Consulting',
+  'Social Media Management',
+  'E-Commerce Development',
+  'Data Analysis',
+  'Game Development',
+  'Music & Audio',
+  'Presentation Design',
+  'Legal Consulting',
+  'Virtual Assistant',
+  'Branding'
+].sort();
 
 interface ServiceFormProps {
   service?: any;
@@ -42,6 +52,93 @@ function ServiceFormComponent({ service, onSuccess, onCancel }: ServiceFormProps
     { name: 'Standard', price: '', desc: '', features: '', delivery: '' },
     { name: 'Premium', price: '', desc: '', features: '', delivery: '' },
   ]);
+
+  // Auto-calculate pricing based on Basic price
+  const calculatePricing = (basicPrice: number) => {
+    if (!basicPrice || basicPrice <= 0) return;
+    
+    const standardPrice = Math.round(basicPrice * 1.5);
+    const premiumPrice = Math.round(basicPrice * 2);
+    
+    setPlans(prev => prev.map((plan, index) => {
+      if (index === 0) return plan; // Keep Basic as is
+      if (index === 1) return { ...plan, price: standardPrice.toString() }; // Standard
+      if (index === 2) return { ...plan, price: premiumPrice.toString() }; // Premium
+      return plan;
+    }));
+  };
+
+  // Auto-generate descriptions and features based on Basic price
+  const generatePlanDetails = (basicPrice: number) => {
+    if (!basicPrice || basicPrice <= 0) return;
+    
+    const isLowPrice = basicPrice <= 200;
+    const isMediumPrice = basicPrice > 200 && basicPrice <= 500;
+    const isHighPrice = basicPrice > 500;
+    
+    let basicDesc = '';
+    let standardDesc = '';
+    let premiumDesc = '';
+    
+    if (isLowPrice) {
+      basicDesc = 'Essential service package';
+      standardDesc = 'Enhanced service package';
+      premiumDesc = 'Complete service package';
+    } else if (isMediumPrice) {
+      basicDesc = 'Basic professional service';
+      standardDesc = 'Professional service package';
+      premiumDesc = 'Premium service package';
+    } else {
+      basicDesc = 'Basic enterprise solution';
+      standardDesc = 'Professional enterprise solution';
+      premiumDesc = 'Complete enterprise solution';
+    }
+    
+    setPlans(prev => prev.map((plan, index) => {
+      if (index === 0) return { ...plan, desc: basicDesc };
+      if (index === 1) return { ...plan, desc: standardDesc };
+      if (index === 2) return { ...plan, desc: premiumDesc };
+      return plan;
+    }));
+  };
+
+  // Auto-generate delivery times
+  const generateDeliveryTimes = () => {
+    setPlans(prev => prev.map((plan, index) => {
+      if (index === 0) return { ...plan, delivery: '5 days' };
+      if (index === 1) return { ...plan, delivery: '3 days' };
+      if (index === 2) return { ...plan, delivery: '1 day' };
+      return plan;
+    }));
+  };
+
+  // Auto-generate features
+  const generateFeatures = () => {
+    setPlans(prev => prev.map((plan, index) => {
+      if (index === 0) return { ...plan, features: 'Basic features, Standard delivery, 2 revisions' };
+      if (index === 1) return { ...plan, features: 'Advanced features, Priority delivery, 5 revisions' };
+      if (index === 2) return { ...plan, features: 'All features, Express delivery, Unlimited revisions' };
+      return plan;
+    }));
+  };
+
+  // Handle Basic price change
+  const handleBasicPriceChange = (value: string) => {
+    const basicPrice = parseFloat(value) || 0;
+    
+    // Update Basic plan price
+    setPlans(prev => prev.map((plan, index) => 
+      index === 0 ? { ...plan, price: value } : plan
+    ));
+    
+    // Auto-calculate other prices
+    calculatePricing(basicPrice);
+    
+    // Auto-generate descriptions and features
+    generatePlanDetails(basicPrice);
+    generateDeliveryTimes();
+    generateFeatures();
+  };
   // New: FAQ
   const [faqs, setFaqs] = useState([{ q: '', a: '' }]);
   // New: images
@@ -79,7 +176,14 @@ function ServiceFormComponent({ service, onSuccess, onCancel }: ServiceFormProps
   }, [service]);
 
   const handlePlanChange = (idx: number, field: string, value: string) => {
-    setPlans(prev => prev.map((p, i) => i === idx ? { ...p, [field]: value } : p));
+    setPlans(prev => prev.map((plan, i) => 
+      i === idx ? { ...plan, [field]: value } : plan
+    ));
+    
+    // If Basic price is changed, auto-calculate other plans
+    if (idx === 0 && field === 'price') {
+      handleBasicPriceChange(value);
+    }
   };
   const handleFaqChange = (idx: number, field: string, value: string) => {
     setFaqs(prev => prev.map((f, i) => i === idx ? { ...f, [field]: value } : f));
@@ -142,28 +246,53 @@ function ServiceFormComponent({ service, onSuccess, onCancel }: ServiceFormProps
     setError(null);
     try {
       console.log('Current user:', user);
+      
+      // Filter out empty images and ensure we have valid images
+      const validImages = images.filter(Boolean);
+      
       const serviceData = {
         title: formData.title,
         description: formData.description,
         category: formData.category,
         price: parseFloat(formData.price),
-        deliverytime: parseInt(formData.deliverytime),
-        imageurl: images[0] || undefined,
-        images: images.filter(Boolean),
+        deliveryTime: parseInt(formData.deliverytime),
+        imageUrl: validImages[0] || undefined,
+        images: validImages,
         tags: formData.tags.split(',').map((tag: string) => tag.trim()).filter(Boolean),
-        freelancerid: user.id, // ensure this is set
-        isactive: true,
+        freelancerId: user.id, // ensure this is set
+        isActive: true,
         plans,
         faqs
       };
+      
       console.log('Service payload to save:', serviceData);
-      const response = service
-        ? await serviceManagement.updateService(service.id, serviceData)
-        : await serviceManagement.createService(serviceData);
+      
+      let response;
+      if (service) {
+        // Update existing service
+        response = await serviceManagement.updateService(service.id, serviceData);
+        
+        // If there are uploaded images, preserve them
+        if (validImages.length > 0 && validImages.some(img => img.startsWith('http'))) {
+          await serviceManagement.uploadServiceImages(service.id, validImages);
+        }
+      } else {
+        // Create new service
+        response = await serviceManagement.createService(serviceData);
+        
+        // If there are uploaded images, mark them as uploaded
+        if (response.success && response.data && validImages.length > 0 && validImages.some(img => img.startsWith('http'))) {
+          await serviceManagement.uploadServiceImages(response.data.id, validImages);
+        }
+      }
+      
       console.log('Service save response:', response);
       if (response.success) {
-        navigate(`/service?category=${encodeURIComponent(formData.category)}`);
-        if (onSuccess) onSuccess();
+        // Add a small delay to ensure database is updated before navigation
+        setTimeout(() => {
+          navigate(`/service?category=${encodeURIComponent(formData.category)}`);
+          if (onSuccess) onSuccess();
+        }, 1000);
       } else {
         setError(response.error || 'Failed to save service');
         console.error('Supabase error:', response.error, response);
@@ -178,6 +307,22 @@ function ServiceFormComponent({ service, onSuccess, onCancel }: ServiceFormProps
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Auto-populate Basic plan when price or delivery time changes
+    if (field === 'price' || field === 'deliverytime') {
+      setPlans(prev => prev.map((plan, index) => {
+        if (index === 0) { // Basic plan (index 0)
+          return {
+            ...plan,
+            price: field === 'price' ? value : plan.price,
+            delivery: field === 'deliverytime' ? `${value} days` : plan.delivery,
+            desc: field === 'price' ? `Basic service package for ₹${value}` : plan.desc,
+            features: field === 'price' ? 'Standard features, Quality work, Timely delivery, Basic support' : plan.features
+          };
+        }
+        return plan;
+      }));
+    }
   };
 
   return (
@@ -194,7 +339,7 @@ function ServiceFormComponent({ service, onSuccess, onCancel }: ServiceFormProps
         <Input
           id="title"
           value={formData.title}
-          onChange={(e) => handleChange('title', e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('title', e.target.value)}
           placeholder="e.g., Professional Logo Design"
           required
         />
@@ -205,7 +350,7 @@ function ServiceFormComponent({ service, onSuccess, onCancel }: ServiceFormProps
           <textarea
             id="description"
             value={formData.description}
-            onChange={(e) => handleChange('description', e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleChange('description', e.target.value)}
             placeholder=" "
             required
             className="block w-full rounded-md border border-green-300 bg-green-50 dark:bg-dark-800 py-3 px-4 text-green-900 dark:text-green-200 focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none transition-all shadow-sm resize-none min-h-[100px] peer"
@@ -332,38 +477,45 @@ function ServiceFormComponent({ service, onSuccess, onCancel }: ServiceFormProps
         <div className="border border-green-300 rounded-lg p-4 mb-2 min-h-[120px] bg-white dark:bg-dark-800">
           {plans.length === 0 && <div className="text-gray-400">No plans added.</div>}
           {plans.map((plan, i) => (
-            <div key={i} className="mb-4">
+            <div key={i} className="mb-4 p-3 rounded-lg border border-green-200 dark:border-green-700">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-semibold text-green-700 dark:text-green-300">{plan.name} Plan</h4>
+              </div>
               <div className="flex gap-2 mb-2">
                 <Input
                   value={plan.name}
-                  onChange={e => handlePlanChange(i, 'name', e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handlePlanChange(i, 'name', e.target.value)}
                   placeholder="Plan Name (e.g., Basic)"
                   className="w-1/3"
                 />
                 <Input
                   value={plan.price}
-                  onChange={e => handlePlanChange(i, 'price', e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handlePlanChange(i, 'price', e.target.value)}
                   placeholder="Price"
                   type="number"
                   className="w-1/3"
+                  disabled={i > 0} // Only Basic plan is editable for price
                 />
                 <Input
                   value={plan.delivery}
-                  onChange={e => handlePlanChange(i, 'delivery', e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handlePlanChange(i, 'delivery', e.target.value)}
                   placeholder="Delivery (e.g., 3 days)"
                   className="w-1/3"
+                  disabled={i > 0} // Only Basic plan is editable for delivery
                 />
               </div>
               <Input
                 value={plan.desc}
-                onChange={e => handlePlanChange(i, 'desc', e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handlePlanChange(i, 'desc', e.target.value)}
                 placeholder="Description"
                 className="mb-2"
+                disabled={i > 0} // Only Basic plan is editable for description
               />
               <Input
                 value={plan.features}
-                onChange={e => handlePlanChange(i, 'features', e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handlePlanChange(i, 'features', e.target.value)}
                 placeholder="Features (comma separated)"
+                disabled={i > 0} // Only Basic plan is editable for features
               />
             </div>
           ))}

@@ -27,7 +27,12 @@ const MessagesPage: React.FC = () => {
   // Open chat with seller if openChat is passed in location.state
   useEffect(() => {
     if (location.state && (location.state as any).openChat) {
-      setSelectedChat((location.state as any).openChat);
+      const openChat = (location.state as any).openChat;
+      console.log('MessagesPage received openChat:', openChat);
+      setSelectedChat(openChat);
+      
+      // Clear the location state to prevent re-triggering on re-renders
+      window.history.replaceState({}, document.title);
     }
   }, [location.state]);
 

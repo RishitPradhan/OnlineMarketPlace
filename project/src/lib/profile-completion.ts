@@ -32,6 +32,18 @@ export const REQUIRED_FIELDS = {
   FREELANCER: ['firstName', 'lastName', 'email', 'bio', 'skills', 'hourlyRate', 'location', 'portfolio']
 };
 
+// Helper function to get user-specific localStorage keys
+const getUserStorageKey = (userId: string, key: string): string => {
+  return `user_${userId}_${key}`;
+};
+
+// Helper function to get profile data for a specific user
+const getUserProfileData = (userId: string, key: string): any => {
+  const storageKey = getUserStorageKey(userId, key);
+  const data = localStorage.getItem(storageKey);
+  return data ? JSON.parse(data) : null;
+};
+
 export const checkProfileCompletion = (user: User | null): ProfileCompletionStatus => {
   if (!user) {
     return {
@@ -58,14 +70,14 @@ export const checkProfileCompletion = (user: User | null): ProfileCompletionStat
 
   // Check role-specific fields
   if (user.role === 'freelancer') {
-    // Get additional profile data from localStorage (using the same keys as DashboardOverview)
-    const profileData = localStorage.getItem('profileData');
-    const skillsData = localStorage.getItem('skillsData');
-    const portfolioData = localStorage.getItem('portfolioProjects');
+    // Get additional profile data from localStorage using user-specific keys
+    const profileData = getUserProfileData(user.id, 'profileData');
+    const skillsData = getUserProfileData(user.id, 'skillsData');
+    const portfolioData = getUserProfileData(user.id, 'portfolioProjects');
 
-    const profile = profileData ? JSON.parse(profileData) : {};
-    const skills = skillsData ? JSON.parse(skillsData) : [];
-    const portfolio = portfolioData ? JSON.parse(portfolioData) : [];
+    const profile = profileData || {};
+    const skills = skillsData || [];
+    const portfolio = portfolioData || [];
 
     // Check profile fields
     if (!profile.bio?.trim()) missingFields.push('bio');
@@ -85,13 +97,15 @@ export const checkProfileCompletion = (user: User | null): ProfileCompletionStat
     if (!Array.isArray(portfolio) || portfolio.length === 0) missingFields.push('portfolio');
     else completedFields.push('portfolio');
   } else {
-    // For clients, check basic profile data
-    const profileData = localStorage.getItem('profileData');
-    const profile = profileData ? JSON.parse(profileData) : {};
+    // For clients, check additional required fields
+    const profileData = getUserProfileData(user.id, 'profileData');
+    const profile = profileData || {};
 
+    // Check phone (required for clients)
     if (!profile.phone?.trim()) missingFields.push('phone');
     else completedFields.push('phone');
 
+    // Check location (required for clients)
     if (!profile.location?.trim()) missingFields.push('location');
     else completedFields.push('location');
   }
@@ -136,6 +150,11 @@ export const isActionBlocked = (action: string, user: User | null): boolean => {
     'contact_client'
   ];
 
+  // For place_order, only check basic profile completion (no portfolio required for clients)
+  if (action === 'place_order' && user?.role === 'client') {
+    return !checkBasicProfileCompletion(user);
+  }
+
   return blockedActions.includes(action) && !status.isComplete;
 };
 
@@ -153,4 +172,45 @@ export const getBlockedActionMessage = (action: string): string => {
   };
 
   return messages[action as keyof typeof messages] || 'Please complete your profile to use this feature.';
+};
+
+// Helper functions to save user-specific profile data
+export const saveUserProfileData = (userId: string, key: string, data: any): void => {
+  const storageKey = getUserStorageKey(userId, key);
+  localStorage.setItem(storageKey, JSON.stringify(data));
+};
+
+export const clearUserProfileData = (userId: string): void => {
+  // Clear all user-specific data when user logs out
+  const keys = ['profileData', 'skillsData', 'portfolioProjects'];
+  keys.forEach(key => {
+    const storageKey = getUserStorageKey(userId, key);
+    localStorage.removeItem(storageKey);
+  });
+};
+
+// Check if basic profile is complete (for dashboard display and client actions)
+export const checkBasicProfileCompletion = (user: User | null): boolean => {
+  if (!user) return false;
+  
+  // Basic profile is complete if user has firstName, lastName, and email
+  const hasBasicInfo = !!(user.firstName?.trim() && user.lastName?.trim() && user.email?.trim());
+  
+  // Get profile data from localStorage
+  const profileData = getUserProfileData(user.id, 'profileData');
+  
+  if (user.role === 'freelancer') {
+    // For freelancers, also check if they have bio, hourly rate, location, and skills
+    const hasBio = !!(profileData?.bio?.trim());
+    const hasHourlyRate = !!(profileData?.hourlyRate);
+    const hasLocation = !!(profileData?.location?.trim());
+    const skillsData = getUserProfileData(user.id, 'skillsData');
+    const hasSkills = Array.isArray(skillsData) && skillsData.length > 0;
+    return hasBasicInfo && hasBio && hasHourlyRate && hasLocation && hasSkills;
+  } else {
+    // For clients, only check if they have phone and location (no portfolio required)
+    const hasPhone = !!(profileData?.phone?.trim());
+    const hasLocation = !!(profileData?.location?.trim());
+    return hasBasicInfo && hasPhone && hasLocation;
+  }
 }; 

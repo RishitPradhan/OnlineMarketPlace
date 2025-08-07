@@ -48,7 +48,7 @@ export const ProfileCompletionGuard: React.FC<ProfileCompletionGuardProps> = ({
   }
 
   const handleCompleteProfile = () => {
-    navigate('/profile-completion');
+    navigate('/profile');
   };
 
   const handleCloseModal = () => {

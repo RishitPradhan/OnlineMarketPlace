@@ -17,7 +17,6 @@ import ProfilePage from './components/pages/ProfilePage';
 import ServicesPage from './components/pages/ServicesPage';
 import PortfolioPage from './components/pages/PortfolioPage';
 import SkillsPage from './components/pages/SkillsPage';
-import { TestAuth } from './components/auth/TestAuth';
 import {
   MyGigsPage,
   MyOrdersPage,
@@ -29,12 +28,13 @@ import BrowseServicesPage from './components/pages/BrowseServicesPage';
 import ProfileCompletionPage from './components/onboarding/ProfileCompletionPage';
 import UserProfile from './components/dashboard/UserProfile';
 import EditServicePage from './components/pages/EditServicePage';
-import CardPaymentPage from './components/payments/CardPaymentPage';
-import ChoosePaymentOptionPage from './components/payments/ChoosePaymentOptionPage';
 import PaymentSuccessPage from './components/payments/PaymentSuccessPage';
-import UPIPaymentPage from './components/payments/UPIPaymentPage';
+import PremiumPaymentPage from './components/payments/PremiumPaymentPage';
 import OrderDetailsPage from './components/pages/OrderDetailsPage';
 import MyOrdersPageApp from './app/orders/my-orders/page';
+import { ServiceDetailPage } from './components/pages/ServiceDetailPage';
+import WebDevelopmentService from './components/pages/WebDevelopmentService';
+import PaymentsPage from './components/pages/PaymentsPage';
 
 // Component to redirect authenticated users away from auth pages
 const AuthRedirect: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -80,24 +80,27 @@ function App() {
           <Route path="/portfolio" element={<PortfolioPage />} />
           <Route path="/skills" element={<SkillsPage />} />
           <Route path="/service" element={<ServiceFreelancers />} />
-          <Route path="/browse-services" element={<BrowseServicesPage />} />
+                        <Route path="/service/:id" element={<ServiceDetailPage />} />
+              <Route path="/service/web-development" element={<WebDevelopmentService />} />
+              <Route path="/browse-services" element={<BrowseServicesPage />} />
           <Route path="/user/:id" element={<UserProfile />} />
           <Route path="/services/edit/:id" element={<EditServicePage />} />
         </Route>
         
-        {/* Standalone Messages Route - No MainLayout */}
+        {/* Standalone Routes - No MainLayout */}
         <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
         <Route path="/orders/:id" element={<OrderDetailsPage />} />
         <Route path="/orders/my-orders" element={<MyOrdersPageApp />} />
         <Route path="/freelancer/:id" element={<FreelancerProfile />} />
         <Route path="/dummy-freelancer/:id" element={<DummyFreelancerProfile />} />
         <Route path="/featured-project" element={<FeaturedProject />} />
-        <Route path="/test-auth" element={<TestAuth />} />
-        <Route path="/payment" element={<ChoosePaymentOptionPage onSelect={() => {}} />} />
-        <Route path="/payment/card" element={<CardPaymentPage />} />
-        <Route path="/payment/options" element={<ChoosePaymentOptionPage onSelect={() => {}} />} />
+        
+        {/* Payment Routes - Standalone with ProtectedRoute */}
+        <Route path="/payments" element={<ProtectedRoute><PaymentsPage /></ProtectedRoute>} />
+        <Route path="/payments/premium" element={<ProtectedRoute><PremiumPaymentPage /></ProtectedRoute>} />
+        
+
         <Route path="/payments/success" element={<PaymentSuccessPage />} />
-        <Route path="/payment/upi" element={<UPIPaymentPage />} />
       </Routes>
     </Router>
       </ThemeProvider>
