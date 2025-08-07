@@ -2,13 +2,32 @@ const express = require('express');
 const Stripe = require('stripe');
 const cors = require('cors');
 require('dotenv').config();
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 const port = process.env.PORT || 3001;
 
 app.use(cors());
+
+// Special handling for Stripe webhooks to get raw body
+app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
+
+// Regular JSON parsing for other routes
 app.use(express.json());
 
+// Initialize Supabase client
+const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://yibfobsxadyhmurcynrx.supabase.co';
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpYmZvYnN4YWR5aG11cmN5bnJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE4MDUxMTAsImV4cCI6MjA2NzM4MTExMH0.HPhNXbaR7jgdcYk2iezll7M7RLIdZgeg6lG2sXakdq4';
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+});
+
+// Initialize Stripe
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 let stripe = null;
 
@@ -18,6 +37,7 @@ if (stripeSecretKey) {
   console.warn('⚠️  STRIPE_SECRET_KEY is not set. Stripe payment features will be disabled.');
 }
 
+// Create payment intent endpoint
 app.post('/api/create-payment-intent', async (req, res) => {
   try {
     console.log('Received payment intent request:', req.body);
@@ -48,90 +68,228 @@ app.post('/api/create-payment-intent', async (req, res) => {
       console.log('Stripe not configured, returning mock payment intent');
       // Return a mock client secret for development
       const mockClientSecret = 'pi_mock_' + Date.now() + '_secret_' + Math.random().toString(36).substr(2, 9);
-      res.json({ clientSecret: mockClientSecret });
-      return;
+      return res.json({
+        success: true,
+        data: {
+          clientSecret: mockClientSecret
+        }
+      });
     }
 
-    // NOTE: You should validate the order and amount here with your DB if needed.
+    // For testing purposes, bypass database check
+    console.log('Bypassing database check for testing');
+    // Uncomment the following code in production
+    /*
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', orderId)
+      .single();
+
+    if (orderError || !order) {
+      return res.status(404).json({ error: { message: 'Order not found' } });
+    }
+
+    // Verify the amount matches the order
+    if (order.amount !== amount) {
+      return res.status(400).json({ error: { message: 'Payment amount does not match order amount' } });
+    }
+    */
+
+    // Create a PaymentIntent with the order amount and currency
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents
       currency: 'usd',
-      automatic_payment_methods: { enabled: true },
-      metadata: { orderId, payerId, receiverId },
+      payment_method_types: [paymentMethod],
+      metadata: {
+        orderId,
+        payerId,
+        receiverId
+      }
     });
-    console.log('Payment intent created successfully:', paymentIntent.id);
-    res.json({ clientSecret: paymentIntent.client_secret });
+
+    res.json({
+      success: true,
+      data: {
+        clientSecret: paymentIntent.client_secret
+      }
+    });
   } catch (error) {
     console.error('Error creating payment intent:', error);
-    res.status(500).json({ error: { message: error.message } });
-  }
-});
-
-app.post('/api/notify-freelancer', async (req, res) => {
-  try {
-    const { freelancerId, orderId, serviceTitle, amount, clientName } = req.body;
-    
-    console.log(`🔔 Notifying freelancer ${freelancerId} about new order ${orderId}`);
-    console.log(`Service: ${serviceTitle}, Amount: ₹${amount}, Client: ${clientName}`);
-    
-    // Here you would typically:
-    // 1. Send email notification
-    // 2. Send push notification
-    // 3. Update in-app notifications
-    // 4. Send SMS (if configured)
-    
-    // For now, just log the notification
-    console.log(`✅ Notification sent to freelancer ${freelancerId}`);
-    
-    res.json({ success: true, message: 'Notification sent successfully' });
-  } catch (error) {
-    console.error('Error sending notification:', error);
-    res.status(500).json({ error: { message: error.message } });
-  }
-});
-
-app.post('/api/create-upi-payment', async (req, res) => {
-  console.log('UPI payment request received:', req.body);
-  const { upiId, amount } = req.body;
-  if (!upiId || !amount) {
-    console.log('Missing fields:', { upiId, amount });
-    return res.status(400).json({ error: 'UPI ID and amount are required.' });
-  }
-  
-  try {
-    // For demo purposes, we'll simulate a UPI payment
-    // In a real implementation, you would integrate with a UPI payment gateway
-    console.log(`Processing UPI payment: ${upiId} for ₹${amount}`);
-    
-    // Simulate payment processing delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Simulate successful payment (90% success rate for demo)
-    const isSuccess = Math.random() > 0.1;
-    
-    if (isSuccess) {
-      console.log('UPI payment successful');
-      res.json({
-        status: 'succeeded',
-        transactionId: `upi_${Date.now()}`,
-        message: 'Payment successful'
-      });
-    } else {
-      console.log('UPI payment failed');
-      res.json({
-        status: 'failed',
-        message: 'Payment failed'
-      });
-    }
-  } catch (err) {
-    console.error('UPI payment error:', err);
-    res.status(500).json({ 
-      status: 'failed',
-      error: 'Payment processing failed' 
+    res.status(500).json({
+      error: {
+        message: 'Error creating payment intent',
+        details: error.message
+      }
     });
   }
 });
 
+// Stripe webhook endpoint
+app.post('/api/webhooks/stripe', async (req, res) => {
+  const signature = req.headers['stripe-signature'];
+  
+  if (!signature) {
+    return res.status(400).json({ error: { message: 'Missing stripe-signature header' } });
+  }
+
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    console.warn('⚠️  STRIPE_WEBHOOK_SECRET is not set. Webhook verification is disabled.');
+    return res.status(200).json({ received: true });
+  }
+
+  if (!stripe) {
+    console.warn('⚠️  Stripe is not configured. Webhook processing is disabled.');
+    return res.status(200).json({ received: true });
+  }
+
+  let event;
+
+  try {
+    // For Express, we need to get the raw body
+    const rawBody = req.rawBody || JSON.stringify(req.body);
+    
+    event = stripe.webhooks.constructEvent(
+      rawBody,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    console.error('Webhook signature verification failed:', err.message);
+    return res.status(400).json({ error: { message: `Webhook Error: ${err.message}` } });
+  }
+
+  try {
+    switch (event.type) {
+      case 'payment_intent.succeeded': {
+        const paymentIntent = event.data.object;
+        const { orderId, payerId, receiverId } = paymentIntent.metadata;
+
+        // Update payment status in database
+        const { error: paymentError } = await supabase
+          .from('payments')
+          .insert({
+            orderid: orderId,
+            payerid: payerId,
+            receiverid: receiverId,
+            amount: paymentIntent.amount / 100, // Convert from cents
+            paymentmethod: 'card',
+            status: 'completed',
+            transactionid: paymentIntent.id,
+            paymentdetails: {
+              payment_method: paymentIntent.payment_method,
+              currency: paymentIntent.currency
+            }
+          });
+
+        if (paymentError) {
+          console.error('Error updating payment:', paymentError);
+          return res.status(500).json({ error: { message: 'Error updating payment' } });
+        }
+
+        // Update order status
+        const { error: orderError } = await supabase
+          .from('orders')
+          .update({ status: 'paid' })
+          .eq('id', orderId);
+
+        if (orderError) {
+          console.error('Error updating order:', orderError);
+          return res.status(500).json({ error: { message: 'Error updating order' } });
+        }
+
+        break;
+      }
+      // Handle other event types as needed
+    }
+
+    res.json({ received: true });
+  } catch (error) {
+    console.error('Error processing webhook:', error);
+    res.status(500).json({ error: { message: 'Error processing webhook' } });
+  }
+});
+
+// Notify freelancer endpoint
+app.post('/api/notify-freelancer', async (req, res) => {
+  try {
+    const { freelancerId, message, orderId } = req.body;
+    
+    if (!freelancerId || !message || !orderId) {
+      return res.status(400).json({ error: { message: 'Missing required fields' } });
+    }
+    
+    // In a real app, you would send a notification to the freelancer
+    // For now, we'll just log it and return success
+    console.log(`Notifying freelancer ${freelancerId} about order ${orderId}: ${message}`);
+    
+    // Simulate a delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    res.json({
+      success: true,
+      data: {
+        message: 'Notification sent successfully'
+      }
+    });
+  } catch (error) {
+    console.error('Error notifying freelancer:', error);
+    res.status(500).json({
+      error: {
+        message: 'Error notifying freelancer',
+        details: error.message
+      }
+    });
+  }
+});
+
+// UPI payment endpoint
+app.post('/api/upi-payment', async (req, res) => {
+  try {
+    const { amount, upiId, orderId, payerId, receiverId } = req.body;
+    
+    if (!amount || !upiId || !orderId || !payerId || !receiverId) {
+      return res.status(400).json({ error: { message: 'Missing required fields' } });
+    }
+    
+    // Simulate UPI payment processing
+    // In a real app, you would integrate with a UPI payment gateway
+    console.log(`Processing UPI payment of ${amount} to ${upiId} for order ${orderId}`);
+    
+    // Simulate a delay and 90% success rate for demo purposes
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Randomly succeed or fail (90% success rate)
+    const success = Math.random() < 0.9;
+    
+    if (success) {
+      res.json({
+        success: true,
+        data: {
+          transactionId: 'upi_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+          status: 'completed'
+        }
+      });
+    } else {
+      res.status(400).json({
+        error: {
+          message: 'UPI payment failed',
+          details: 'Payment gateway rejected the transaction'
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error processing UPI payment:', error);
+    res.status(500).json({
+      error: {
+        message: 'Error processing UPI payment',
+        details: error.message
+      }
+    });
+  }
+});
+
+// Start the server
 app.listen(port, () => {
-  console.log(`Express server listening on port ${port}`);
-}); 
+  console.log(`Server running on port ${port}`);
+});

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Test</title>
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      padding: 20px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    #card-element {
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    #card-errors {
+      color: #fa755a;
+      margin-top: 10px;
+    }
+    .success-message {
+      color: #4CAF50;
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #4CAF50;
+      border-radius: 4px;
+      display: none;
+    }
+    .error-message {
+      color: #fa755a;
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #fa755a;
+      border-radius: 4px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Payment Test</h1>
+  
+  <div class="form-group">
+    <label for="amount">Amount (USD)</label>
+    <input type="number" id="amount" value="100">
+  </div>
+  
+  <div class="form-group">
+    <label for="payment-method">Payment Method</label>
+    <select id="payment-method">
+      <option value="card">Credit Card</option>
+      <option value="upi">UPI</option>
+    </select>
+  </div>
+  
+  <div id="card-payment-form" class="form-group">
+    <label for="card-element">Credit Card</label>
+    <div id="card-element"></div>
+    <div id="card-errors" role="alert"></div>
+  </div>
+  
+  <div id="upi-payment-form" class="form-group" style="display: none;">
+    <label for="upi-id">UPI ID</label>
+    <input type="text" id="upi-id" placeholder="yourname@upi">
+  </div>
+  
+  <button id="submit-payment">Pay Now</button>
+  
+  <div id="success-message" class="success-message"></div>
+  <div id="error-message" class="error-message"></div>
+  
+  <script>
+    // Initialize Stripe
+    const stripe = Stripe('pk_test_51Ro4QGRAZVFgkVANKKXvQGQXnLJGWbLWXRQRZrKEDCxYyuVhWLPNTAPqYN9LHYUhxA9wXsqrMk5QEDYJIJJuGHSL00aSgTLJbO');
+    const elements = stripe.elements();
+    
+    // Create card element
+    const cardElement = elements.create('card');
+    cardElement.mount('#card-element');
+    
+    // Handle payment method selection
+    const paymentMethodSelect = document.getElementById('payment-method');
+    const cardPaymentForm = document.getElementById('card-payment-form');
+    const upiPaymentForm = document.getElementById('upi-payment-form');
+    
+    paymentMethodSelect.addEventListener('change', function(event) {
+      if (event.target.value === 'card') {
+        cardPaymentForm.style.display = 'block';
+        upiPaymentForm.style.display = 'none';
+      } else if (event.target.value === 'upi') {
+        cardPaymentForm.style.display = 'none';
+        upiPaymentForm.style.display = 'block';
+      }
+    });
+    
+    // Handle form submission
+    const submitButton = document.getElementById('submit-payment');
+    const successMessage = document.getElementById('success-message');
+    const errorMessage = document.getElementById('error-message');
+    
+    submitButton.addEventListener('click', async function() {
+      submitButton.disabled = true;
+      successMessage.style.display = 'none';
+      errorMessage.style.display = 'none';
+      
+      const amount = document.getElementById('amount').value;
+      const paymentMethod = paymentMethodSelect.value;
+      
+      try {
+        if (paymentMethod === 'card') {
+          // Create payment intent
+          const response = await fetch('/api/create-payment-intent', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              amount: parseInt(amount),
+              paymentMethod: 'card',
+              orderId: '123',
+              payerId: '456',
+              receiverId: '789'
+            })
+          });
+          
+          const result = await response.json();
+          
+          if (result.error) {
+            throw new Error(result.error.message);
+          }
+          
+          // Confirm card payment
+          const { error, paymentIntent } = await stripe.confirmCardPayment(result.data.clientSecret, {
+            payment_method: {
+              card: cardElement,
+              billing_details: {
+                name: 'Test User'
+              }
+            }
+          });
+          
+          if (error) {
+            throw new Error(error.message);
+          }
+          
+          if (paymentIntent.status === 'succeeded') {
+            successMessage.textContent = 'Payment successful! Payment ID: ' + paymentIntent.id;
+            successMessage.style.display = 'block';
+          }
+        } else if (paymentMethod === 'upi') {
+          const upiId = document.getElementById('upi-id').value;
+          
+          if (!upiId) {
+            throw new Error('Please enter a UPI ID');
+          }
+          
+          // Process UPI payment
+          const response = await fetch('/api/upi-payment', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              amount: parseInt(amount),
+              upiId: upiId,
+              orderId: '123',
+              payerId: '456',
+              receiverId: '789'
+            })
+          });
+          
+          const result = await response.json();
+          
+          if (result.error) {
+            throw new Error(result.error.message);
+          }
+          
+          successMessage.textContent = 'UPI Payment successful! Transaction ID: ' + result.data.transactionId;
+          successMessage.style.display = 'block';
+        }
+      } catch (error) {
+        errorMessage.textContent = error.message;
+        errorMessage.style.display = 'block';
+      }
+      
+      submitButton.disabled = false;
+    });
+  </script>
+</body>
+</html>

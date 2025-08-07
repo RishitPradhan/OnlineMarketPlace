@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "vercel-build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "start": "node server.cjs",
     "start:server": "node server.cjs",
     "server": "node server.cjs",
     "server:stripe": "powershell -ExecutionPolicy Bypass -File start-server-with-stripe.ps1"
