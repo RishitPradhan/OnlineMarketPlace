@@ -61,15 +61,13 @@ export const RegisterForm: React.FC = () => {
         return;
       }
 
-      const user = await registerUser(
-        formData.email,
-        formData.password,
-        {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          role: formData.role
-        }
-      );
+      const user = await registerUser({
+        email: formData.email,
+        password: formData.password,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        role: formData.role
+      });
 
       if (user && user.id) {
         navigate('/dashboard');
