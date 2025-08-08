@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, AuthContextType, RegisterData } from '../types';
-import { simpleAuthService as authService } from '../lib/simple-auth';
-import { clearUserProfileData } from '../lib/profile-completion';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -15,21 +13,25 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  // Check for existing session on mount
+  // Check for existing session on mount (from localStorage)
   useEffect(() => {
-    const checkAuth = async () => {
+    const checkAuth = () => {
       try {
         console.log('[AuthContext] Checking current user session...');
-        const currentUser = await authService.getCurrentUser();
-        console.log('[AuthContext] getCurrentUser result:', currentUser);
-        setUser(currentUser);
+        const storedUser = localStorage.getItem('currentUser');
+        if (storedUser) {
+          const currentUser = JSON.parse(storedUser);
+          console.log('[AuthContext] Found stored user:', currentUser);
+          setUser(currentUser);
+        } else {
+          console.log('[AuthContext] No stored user found');
+          setUser(null);
+        }
       } catch (error) {
         console.error('[AuthContext] Auth check failed:', error);
         setUser(null);
-      } finally {
-        setLoading(false);
       }
     };
     checkAuth();
@@ -39,13 +41,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true);
       console.log('[AuthContext] Attempting login for', email);
-      const userData = await authService.login({ email, password });
+      
+      // Simple validation - just check if fields are filled
+      if (!email || !password) {
+        throw new Error('Please fill in all fields');
+      }
+      
+      if (!email.includes('@')) {
+        throw new Error('Please enter a valid email address');
+      }
+      
+      // Create a mock user object
+      const userData: User = {
+        id: Date.now().toString(),
+        email: email,
+        firstName: 'User',
+        lastName: 'Name',
+        role: 'client',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      // Store user in localStorage
+      localStorage.setItem('currentUser', JSON.stringify(userData));
+      
       console.log('[AuthContext] Login successful, user:', userData);
       setUser(userData);
       return userData;
     } catch (error: any) {
       console.error('[AuthContext] Login failed:', error);
-      throw new Error(error.message || 'Login failed. Please check your credentials.');
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -55,13 +80,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true);
       console.log('[AuthContext] Attempting registration for', userData.email);
-      const newUser = await authService.register(userData);
+      
+      // Validate all required fields
+      if (!userData.email || !userData.password || !userData.firstName || !userData.lastName || !userData.role) {
+        throw new Error('Please fill in all fields');
+      }
+      
+      if (!userData.email.includes('@')) {
+        throw new Error('Please enter a valid email address');
+      }
+      
+      if (userData.password.length < 6) {
+        throw new Error('Password must be at least 6 characters long');
+      }
+      
+      // Create a user object
+      const newUser: User = {
+        id: Date.now().toString(),
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        role: userData.role,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      // Store user in localStorage
+      localStorage.setItem('currentUser', JSON.stringify(newUser));
+      
       console.log('[AuthContext] Registration successful, user:', newUser);
       setUser(newUser);
       return newUser;
     } catch (error: any) {
       console.error('[AuthContext] Registration failed:', error);
-      throw new Error(error.message || 'Registration failed. Please try again.');
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -71,30 +123,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('[AuthContext] Logging out...');
       
-      // Clear user-specific profile data before logout
-      if (user) {
-        clearUserProfileData(user.id);
-        console.log('[AuthContext] Cleared user-specific profile data');
-      }
+      // Clear user from localStorage
+      localStorage.removeItem('currentUser');
       
-      await authService.logout();
       setUser(null);
-      console.log('[AuthContext] User set to null after logout');
+      console.log('[AuthContext] User logged out successfully');
     } catch (error: any) {
       console.error('[AuthContext] Logout failed:', error);
       setUser(null);
     }
   };
 
-  useEffect(() => {
-    console.log('[AuthContext] user state changed:', user);
-    if (user === null) {
-      console.warn('[AuthContext] WARNING: user is null. This will cause redirect to login.');
-    }
-  }, [user]);
-
   const updateUser = (updatedUser: User) => {
     setUser(updatedUser);
+    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
   };
 
   const value: AuthContextType = {

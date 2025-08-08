@@ -29,19 +29,32 @@ export const LoginForm: React.FC = () => {
     setError('');
 
     try {
-      if (!formData.email || !formData.password) {
-        setError('Please fill in all fields');
+      // Validate all fields are filled
+      if (!formData.email.trim()) {
+        setError('Email is required');
+        return;
+      }
+      
+      if (!formData.password.trim()) {
+        setError('Password is required');
+        return;
+      }
+      
+      if (!formData.email.includes('@')) {
+        setError('Please enter a valid email address');
         return;
       }
 
       const user = await login(formData.email, formData.password);
       if (user && user.id) {
+        console.log('Login successful, navigating to dashboard');
         navigate('/dashboard');
       } else {
-        setError('Invalid email or password');
+        setError('Login failed. Please try again.');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      console.error('Login error:', err);
+      setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }

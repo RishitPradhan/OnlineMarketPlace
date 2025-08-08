@@ -40,12 +40,13 @@ export const RegisterForm: React.FC = () => {
     if (!formData.firstName.trim()) return 'First name is required';
     if (!formData.lastName.trim()) return 'Last name is required';
     if (!formData.email.trim()) return 'Email is required';
-    if (!formData.email.includes('@')) return 'Please enter a valid email';
-    if (!formData.password) return 'Password is required';
-    if (formData.password.length < 6) return 'Password must be at least 6 characters';
-    if (!formData.confirmPassword) return 'Please confirm your password';
+    if (!formData.email.includes('@')) return 'Please enter a valid email address';
+    if (!formData.password.trim()) return 'Password is required';
+    if (formData.password.length < 6) return 'Password must be at least 6 characters long';
+    if (formData.password.length > 50) return 'Password must be less than 50 characters';
+    if (!formData.confirmPassword.trim()) return 'Please confirm your password';
     if (formData.password !== formData.confirmPassword) return 'Passwords do not match';
-    if (!formData.role) return 'Please select your role';
+    if (!formData.role) return 'Please select your role (Client or Freelancer)';
     return null;
   };
 
@@ -55,27 +56,37 @@ export const RegisterForm: React.FC = () => {
     setError('');
 
     try {
+      // Validate all required fields
       const validationError = validateForm();
       if (validationError) {
         setError(validationError);
         return;
       }
 
-      const user = await registerUser({
+      console.log('Attempting registration with data:', {
         email: formData.email,
-        password: formData.password,
         firstName: formData.firstName,
         lastName: formData.lastName,
         role: formData.role
       });
 
+      const user = await registerUser({
+        email: formData.email,
+        password: formData.password,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        role: formData.role as 'client' | 'freelancer'
+      });
+
       if (user && user.id) {
+        console.log('Registration successful, navigating to dashboard');
         navigate('/dashboard');
       } else {
         setError('Registration failed. Please try again.');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed');
+      console.error('Registration error:', err);
+      setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
